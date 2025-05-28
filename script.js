@@ -1,6 +1,4 @@
-// script.js modifié pour fonctionner avec AllOrigins
-
-const API_KEY = "7nAc6NHplCJtJ46Qw32QFtefq3TQEYrT";
+ const API_KEY = "7nAc6NHplCJtJ46Qw32QFtefq3TQEYrT";
 const allOriginsBase = "https://api.allorigins.win/raw?url=";
 
 const endpoints = {
