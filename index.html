@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Transport vers l'Hippodrome de Vincennes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+        h1 { color: #2c3e50; }
+        .section { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .section h2 { color: #2980b9; }
+        .info { font-size: 14px; }
+        .refresh-time { font-size: 12px; color: gray; }
+    </style>
+</head>
+<body>
+    <h1>Accès Hippodrome de Vincennes</h1>
+    <div class="refresh-time" id="datetime"></div>
+
+    <div class="section">
+        <h2>🚆 RER A – Joinville-le-Pont</h2>
+        <div class="info" id="rer-info">Chargement en cours...</div>
+    </div>
+
+    <div class="section">
+        <h2>🚌 Bus 77 (Hippodrome) et 201 (Pyramide)</h2>
+        <div class="info" id="bus-info">Chargement en cours...</div>
+    </div>
+
+    <div class="section">
+        <h2>🚲 Vélib’ Stations 12128 & 12163</h2>
+        <div class="info" id="velib-info">Chargement en cours...</div>
+    </div>
+
+    <script>
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById("datetime").innerText = 
+                "Données mises à jour : " + now.toLocaleString("fr-FR");
+        }
+
+        async function fetchData() {
+            updateDateTime();
+
+            try {
+                const rer = await fetch('/api/rer');
+                const rerData = await rer.json();
+                document.getElementById("rer-info").innerText = rerData.message;
+
+                const bus = await fetch('/api/bus');
+                const busData = await bus.json();
+                document.getElementById("bus-info").innerText = busData.message;
+
+                const velib = await fetch('/api/velib');
+                const velibData = await velib.json();
+                document.getElementById("velib-info").innerText = velibData.message;
+
+            } catch (e) {
+                console.error("Erreur fetch :", e);
+            }
+        }
+
+        fetchData();
+        setInterval(fetchData, 120000);
+    </script>
+</body>
+</html>
