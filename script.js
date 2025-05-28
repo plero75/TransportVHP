@@ -1,89 +1,81 @@
+// script.js modifié pour fonctionner avec AllOrigins
 
-// ========== Variables utiles ==========
-const apiToken = "7nAc6NHplCJtJ46Qw32QFtefq3TQEYrT";
-const proxy = "https://corsproxy.io/?";
+const API_KEY = "7nAc6NHplCJtJ46Qw32QFtefq3TQEYrT";
+const allOriginsBase = "https://api.allorigins.win/raw?url=";
 
-// ========== MAJ date et heure ==========
-function updateDateTime() {
+const endpoints = {
+  rerA: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:43159:`,
+  bus77: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44304:`,
+  bus201: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44489:`,
+  velibStatus: `https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json`,
+  velibInfo: `https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json`
+};
+
+function fetchPrimAPI(url, callback) {
+  fetch(allOriginsBase + encodeURIComponent(url), {
+    headers: {
+      apikey: API_KEY
+    }
+  })
+    .then(response => response.json())
+    .then(callback)
+    .catch(error => console.error("Erreur RATP:", error));
+}
+
+function updateTime() {
   const now = new Date();
-  const dateStr = now.toLocaleDateString("fr-FR", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const timeStr = now.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
-  document.getElementById("datetime").textContent = dateStr + " - " + timeStr;
+  document.getElementById("last-update").textContent = now.toLocaleString("fr-FR");
 }
-setInterval(updateDateTime, 1000);
-updateDateTime();
 
-// ========== Vélib’ ==========
-function fetchVelib() {
-  const url = proxy + encodeURIComponent("https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json");
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      const stations = [12128, 12163];
-      stations.forEach(id => {
-        const station = data.data.stations.find(s => s.station_id == id);
-        if (station) {
-          document.getElementById(`velib_${id}_mech`).textContent = station.num_bikes_available_types.find(b => b.type === "mechanical")?.value || 0;
-          document.getElementById(`velib_${id}_elec`).textContent = station.num_bikes_available_types.find(b => b.type === "ebike")?.value || 0;
-          document.getElementById(`velib_${id}_free`).textContent = station.num_docks_available;
-        }
-      });
-    });
+function displayRER() {
+  fetchPrimAPI(endpoints.rerA, data => {
+    const info = data.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
+    const html = info.map(el => {
+      const ligne = el.MonitoredVehicleJourney.PublishedLineName;
+      const dest = el.MonitoredVehicleJourney.DestinationName;
+      const time = new Date(el.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime);
+      return `→ ${dest} (Ligne ${ligne}) : ${time.getHours()}h${time.getMinutes().toString().padStart(2, '0')}`;
+    }).join("<br>");
+    document.getElementById("rer-a").innerHTML = html;
+  });
 }
-fetchVelib();
-setInterval(fetchVelib, 60000);
 
-// ========== Infos trafic RER / Bus ==========
-function fetchTrafficInfo(lineCode, containerId) {
-  const url = proxy + encodeURIComponent(`https://api.iledefrance-mobilites.fr/v1/network/lines/${lineCode}/traffic`);
-  fetch(url, {
-    headers: { Authorization: `Bearer ${apiToken}` }
-  })
-    .then(res => res.json())
-    .then(data => {
-      const info = data.message || "RAS";
-      document.getElementById(containerId).textContent = info;
-    });
+function displayBus(id, endpoint) {
+  fetchPrimAPI(endpoint, data => {
+    const info = data.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
+    const html = info.map(el => {
+      const dest = el.MonitoredVehicleJourney.DestinationName;
+      const time = new Date(el.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime);
+      return `→ ${dest} : ${time.getHours()}h${time.getMinutes().toString().padStart(2, '0')}`;
+    }).join("<br>");
+    document.getElementById(id).innerHTML = html;
+  });
 }
-fetchTrafficInfo("RER.A", "trafic_rer");
-fetchTrafficInfo("BUS.77", "trafic_77");
-fetchTrafficInfo("BUS.201", "trafic_201");
 
-// ========== Prochains passages RER Joinville ==========
-function fetchNextPassages(stopId, containerId) {
-  const url = proxy + encodeURIComponent(`https://api.iledefrance-mobilites.fr/v1/stop-areas/${stopId}/departures?count=3`);
-  fetch(url, {
-    headers: { Authorization: `Bearer ${apiToken}` }
-  })
-    .then(res => res.json())
-    .then(data => {
-      const list = document.getElementById(containerId);
-      list.innerHTML = "";
-      data.departures.forEach(dep => {
-        const li = document.createElement("li");
-        li.textContent = `${dep.display_informations.direction} - ${dep.stop_date_time.departure_time.slice(0, 5)}`;
-        list.appendChild(li);
-      });
-    });
+function displayVelib() {
+  Promise.all([
+    fetch(allOriginsBase + encodeURIComponent(endpoints.velibStatus)).then(res => res.json()),
+    fetch(allOriginsBase + encodeURIComponent(endpoints.velibInfo)).then(res => res.json())
+  ]).then(([status, info]) => {
+    const ids = [12128, 12163];
+    const html = ids.map(id => {
+      const stat = status.data.stations.find(s => s.station_id == id);
+      const inf = info.data.stations.find(s => s.station_id == id);
+      return `<strong>${inf.name}</strong> : ${stat.num_bikes_available} vélos dont ${stat.num_ebikes_available} électriques, ${stat.num_docks_available} places dispo.`;
+    }).join("<br>");
+    document.getElementById("velib").innerHTML = html;
+  }).catch(err => {
+    document.getElementById("velib").innerText = "Erreur";
+    console.error("Erreur Vélib'", err);
+  });
 }
-fetchNextPassages("stop_area:IDFM:8775860", "rer_directions");
 
-// ========== Horaires de service ==========
-function fetchServiceTimes(stopId, containerId) {
-  const url = proxy + encodeURIComponent(`https://api.iledefrance-mobilites.fr/v1/coverage/IDFM/stop_areas/${stopId}/route_schedules`);
-  fetch(url, {
-    headers: { Authorization: `Bearer ${apiToken}` }
-  })
-    .then(res => res.json())
-    .then(data => {
-      const schedules = data.route_schedules[0]?.table?.rows;
-      if (schedules?.length > 0) {
-        const first = schedules[0].stop_time.departure_time;
-        const last = schedules[schedules.length - 1].stop_time.departure_time;
-        document.getElementById(containerId).textContent = `Premier : ${first.slice(0, 5)} | Dernier : ${last.slice(0, 5)}`;
-      }
-    });
+function init() {
+  updateTime();
+  displayRER();
+  displayBus("bus-77", endpoints.bus77);
+  displayBus("bus-201", endpoints.bus201);
+  displayVelib();
 }
-fetchServiceTimes("stop_area:IDFM:8775860", "rer_hours"); // Joinville
-fetchServiceTimes("stop_area:IDFM:49168", "bus77_hours"); // Hippodrome
-fetchServiceTimes("stop_area:IDFM:48485", "bus201_hours"); // Pyramide
+
+init();
