@@ -1,20 +1,18 @@
- const API_KEY = "7nAc6NHplCJtJ46Qw32QFtefq3TQEYrT";
+// script.js modifié pour GitHub Pages avec l'apikey dans l'URL (pas de header)
+
+const API_KEY = "7nAc6NHplCJtJ46Qw32QFtefq3TQEYrT";
 const allOriginsBase = "https://api.allorigins.win/raw?url=";
 
 const endpoints = {
-  rerA: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:43159:`,
-  bus77: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44304:`,
-  bus201: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44489:`,
+  rerA: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:43159:&apikey=${API_KEY}`,
+  bus77: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44304:&apikey=${API_KEY}`,
+  bus201: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44489:&apikey=${API_KEY}`,
   velibStatus: `https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json`,
   velibInfo: `https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json`
 };
 
 function fetchPrimAPI(url, callback) {
-  fetch(allOriginsBase + encodeURIComponent(url), {
-    headers: {
-      apikey: API_KEY
-    }
-  })
+  fetch(allOriginsBase + encodeURIComponent(url))
     .then(response => response.json())
     .then(callback)
     .catch(error => console.error("Erreur RATP:", error));
