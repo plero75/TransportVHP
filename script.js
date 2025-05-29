@@ -1,12 +1,10 @@
-// script.js modifié pour GitHub Pages avec l'apikey dans l'URL (pas de header)
-
-const API_KEY = "7nAc6NHplCJtJ46Qw32QFtefq3TQEYrT";
+// script.js compatible GitHub Pages avec AllOrigins (sans apikey)
 const allOriginsBase = "https://api.allorigins.win/raw?url=";
 
 const endpoints = {
-  rerA: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:43159:&apikey=${API_KEY}`,
-  bus77: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44304:&apikey=${API_KEY}`,
-  bus201: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44489:&apikey=${API_KEY}`,
+  rerA: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:43159:`,
+  bus77: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44304:`,
+  bus201: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44489:`,
   velibStatus: `https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json`,
   velibInfo: `https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json`
 };
@@ -25,7 +23,8 @@ function updateTime() {
 
 function displayRER() {
   fetchPrimAPI(endpoints.rerA, data => {
-    const info = data.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
+    const info = data.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit;
+    if (!info) return document.getElementById("rer-a").innerText = "Aucune donnée";
     const html = info.map(el => {
       const ligne = el.MonitoredVehicleJourney.PublishedLineName;
       const dest = el.MonitoredVehicleJourney.DestinationName;
@@ -38,7 +37,8 @@ function displayRER() {
 
 function displayBus(id, endpoint) {
   fetchPrimAPI(endpoint, data => {
-    const info = data.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
+    const info = data.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit;
+    if (!info) return document.getElementById(id).innerText = "Aucune donnée";
     const html = info.map(el => {
       const dest = el.MonitoredVehicleJourney.DestinationName;
       const time = new Date(el.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime);
@@ -61,7 +61,7 @@ function displayVelib() {
     }).join("<br>");
     document.getElementById("velib").innerHTML = html;
   }).catch(err => {
-    document.getElementById("velib").innerText = "Erreur";
+    document.getElementById("velib").innerText = "Erreur Vélib'";
     console.error("Erreur Vélib'", err);
   });
 }
