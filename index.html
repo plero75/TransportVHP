@@ -68,7 +68,13 @@ const velibStations = [
       const res = await fetch(`https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${ref}`);
       if (!res.ok) return null;
       const data = await res.json();
-      return data.Siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
+
+if (!data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit) {
+  return [];
+}
+
+return data.Siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
+
     }
 
     function groupDepartures(visits) {
