@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -51,30 +52,23 @@
 
   <script>
     const stops = [
-  { name: "Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:43972:" },
-  { name: "École du Breuil", ref: "STIF:StopPoint:Q:43974:" }
-];
+      { name: "Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:43972:" },
+      { name: "École du Breuil", ref: "STIF:StopPoint:Q:43974:" }
+    ];
 
-const rerStops = [
-  { name: "Joinville-le-Pont", ref: "STIF:StopPoint:Q:43851:" }
-];
+    const rerStops = [
+      { name: "Joinville-le-Pont", ref: "STIF:StopPoint:Q:43851:" }
+    ];
 
-const velibStations = [
-  { name: "Hippodrome de Vincennes", station_id: "12029" }
-];
-    
+    const velibStations = [
+      { name: "Hippodrome de Vincennes", station_id: "12029" }
+    ];
 
     async function fetchDepartures(ref) {
       const res = await fetch(`https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${ref}`);
-      if (!res.ok) return null;
+      if (!res.ok) return [];
       const data = await res.json();
-
-if (!data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit) {
-  return [];
-}
-
-return data.Siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
-
+      return data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
     }
 
     function groupDepartures(visits) {
@@ -99,11 +93,13 @@ return data.Siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
       container.innerHTML = "";
       for (const stop of stops) {
         const visits = await fetchDepartures(stop.ref);
-        if (!visits) continue;
         const grouped = groupDepartures(visits);
         const section = document.createElement("div");
         section.className = "line";
         section.innerHTML = `<h2>🚌 ${stop.name}</h2>`;
+        if (Object.keys(grouped).length === 0) {
+          section.innerHTML += `<div class="departure">Aucune donnée disponible</div>`;
+        }
         for (const dir in grouped) {
           section.innerHTML += `<div><strong>${dir}</strong></div>`;
           grouped[dir].forEach(dep => {
@@ -120,11 +116,13 @@ return data.Siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
       container.innerHTML = "";
       for (const stop of rerStops) {
         const visits = await fetchDepartures(stop.ref);
-        if (!visits) continue;
         const grouped = groupDepartures(visits);
         const section = document.createElement("div");
         section.className = "line";
         section.innerHTML = `<h2>🚆 RER A – ${stop.name}</h2>`;
+        if (Object.keys(grouped).length === 0) {
+          section.innerHTML += `<div class="departure">Aucune donnée disponible</div>`;
+        }
         for (const dir in grouped) {
           section.innerHTML += `<div><strong>${dir}</strong></div>`;
           grouped[dir].forEach(dep => {
@@ -139,14 +137,14 @@ return data.Siri.ServiceDelivery.StopMonitoringDelivery[0].MonitoredStopVisit;
     async function showVelib() {
       const el = document.getElementById("velib");
       el.innerHTML = "<h2>🚲 Vélib'</h2>";
-      const res = await fetch("https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_information.json");
-      const status = await fetch("https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json");
-      if (!res.ok || !status.ok) return;
-      const info = await res.json();
-      const stat = await status.json();
+      const infoRes = await fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_information");
+      const statusRes = await fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_status");
+      if (!infoRes.ok || !statusRes.ok) return;
+      const info = await infoRes.json();
+      const stat = await statusRes.json();
       velibStations.forEach(({ station_id, name }) => {
-        const target = info.data.stations.find(s => s.station_id === station_id);
-        const avail = stat.data.stations.find(s => s.station_id === station_id);
+        const target = info.data.stations.find(s => s.station_id == station_id);
+        const avail = stat.data.stations.find(s => s.station_id == station_id);
         if (!target || !avail) return;
         el.innerHTML += `<div class="departure">${name} : ${avail.num_bikes_available} vélos / ${avail.num_docks_available} bornes</div>`;
       });
