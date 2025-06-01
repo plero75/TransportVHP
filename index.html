@@ -51,15 +51,18 @@
 
   <script>
     const stops = [
-      {{ name: "Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:43972" }},
-      {{ name: "École du Breuil", ref: "STIF:StopPoint:Q:43974" }}
-    ];
-    const rerStops = [
-      {{ name: "Joinville-le-Pont", ref: "STIF:StopPoint:Q:43851" }}
-    ];
-    const velibStations = [
-      {{ name: "Hippodrome de Vincennes", station_id: "12029" }}
-    ];
+  { name: "Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:43972" },
+  { name: "École du Breuil", ref: "STIF:StopPoint:Q:43974" }
+];
+
+const rerStops = [
+  { name: "Joinville-le-Pont", ref: "STIF:StopPoint:Q:43851" }
+];
+
+const velibStations = [
+  { name: "Hippodrome de Vincennes", station_id: "12029" }
+];
+    
 
     async function fetchDepartures(ref) {
       const res = await fetch(`https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${ref}`);
