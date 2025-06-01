@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -51,11 +52,10 @@
 
   <script>
     const busStops = [
-      { name: "Ligne 112 - École du Breuil", ref: "STIF:StopPoint:Q:43135:" },
-      { name: "Ligne 201 - Hippodrome", ref: "STIF:StopPoint:Q:42897:" }
+      { name: "Bus 77/201 - École du Breuil", ref: "STIF:StopPoint:Q:463644:" }
     ];
-    const rerJoinvilleId = "stop_area:IDFM:87482222:RER";
-    const velibStation = 12123;
+    const rerJoinvilleId = "stop_area:IDFM:43135:RER";
+    const velibStations = [12128, 12163];
 
     async function fetchBus(ref) {
       const res = await fetch(`https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${ref}`);
@@ -67,9 +67,12 @@
     function groupDepartures(visits) {
       const grouped = {};
       visits.forEach(visit => {
-        const dir = visit.MonitoredVehicleJourney.DirectionName;
+        const dirRaw = visit.MonitoredVehicleJourney.DirectionName;
+        const dir = dirRaw?.value || dirRaw || "Direction inconnue";
         const call = visit.MonitoredVehicleJourney.MonitoredCall;
+        if (!call || (!call.ExpectedArrivalTime && !call.AimedArrivalTime)) return;
         const dt = new Date(call.ExpectedArrivalTime || call.AimedArrivalTime);
+        if (isNaN(dt.getTime())) return;
         const now = new Date();
         const diffMin = Math.floor((dt - now) / 60000);
         if (diffMin < 2) return;
@@ -104,18 +107,18 @@
 
     async function showVelib() {
       const el = document.getElementById("velib");
-      el.innerHTML = "";
-      const res = await fetch(`https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_information.json`);
-      const status = await fetch(`https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json`);
+      el.innerHTML = "<h2>🚲 Vélib'</h2>";
+      const res = await fetch("https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_information.json");
+      const status = await fetch("https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json");
       if (!res.ok || !status.ok) return;
       const info = await res.json();
       const stat = await status.json();
-      const target = info.data.stations.find(s => s.station_id == velibStation);
-      const avail = stat.data.stations.find(s => s.station_id == velibStation);
-      if (!target || !avail) return;
-      el.innerHTML = `<h2>🚲 Vélib' - ${target.name}</h2>
-        <div class="departure">Vélos dispo : ${avail.num_bikes_available}</div>
-        <div class="departure">Bornes dispo : ${avail.num_docks_available}</div>`;
+      velibStations.forEach(id => {
+        const target = info.data.stations.find(s => s.station_id == id);
+        const avail = stat.data.stations.find(s => s.station_id == id);
+        if (!target || !avail) return;
+        el.innerHTML += `<div class="departure">${target.name} : ${avail.num_bikes_available} vélos / ${avail.num_docks_available} bornes</div>`;
+      });
     }
 
     async function showRER() {
