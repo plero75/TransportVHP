@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tableau Transports - Vincennes</title>
+  <title>Tableau Transports - Vincennes (Debug)</title>
   <style>
     body {
       background-color: #000;
@@ -43,7 +43,7 @@
   </style>
 </head>
 <body>
-  <h1>⏱ Transports en Temps Réel – Hippodrome de Vincennes</h1>
+  <h1>⏱ Transports en Temps Réel – Hippodrome de Vincennes (Debug)</h1>
   <div class="section" id="weather"></div>
   <div class="section" id="bus"></div>
   <div class="section" id="rer"></div>
@@ -52,14 +52,12 @@
 
   <script>
     const stops = [
-      { name: "Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:43972:" },
-      { name: "École du Breuil", ref: "STIF:StopPoint:Q:43974:" }
+      { name: "Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:43972" },
+      { name: "École du Breuil", ref: "STIF:StopPoint:Q:43974" }
     ];
-
     const rerStops = [
-      { name: "Joinville-le-Pont", ref: "STIF:StopPoint:Q:43851:" }
+      { name: "Joinville-le-Pont", ref: "STIF:StopPoint:Q:43851" }
     ];
-
     const velibStations = [
       { name: "Hippodrome de Vincennes", station_id: "12029" }
     ];
@@ -68,7 +66,9 @@
       const res = await fetch(`https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${ref}`);
       if (!res.ok) return [];
       const data = await res.json();
-      return data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
+      const visits = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
+      console.log(`DEBUG - Réponse PRIM pour ${ref}:`, visits);
+      return visits;
     }
 
     function groupDepartures(visits) {
