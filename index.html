@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tableau Transport Vincennes</title>
+  <title>Tableau Transports - Vincennes</title>
   <style>
     body {
       background-color: #000;
@@ -42,7 +42,7 @@
   </style>
 </head>
 <body>
-  <h1>⏱ Tableau des Transports - Hippodrome de Vincennes</h1>
+  <h1>⏱ Transports en Temps Réel – Hippodrome de Vincennes</h1>
   <div class="section" id="weather"></div>
   <div class="section" id="bus"></div>
   <div class="section" id="rer"></div>
@@ -50,13 +50,18 @@
   <div class="timestamp" id="timestamp"></div>
 
   <script>
-    const busStops = [
-      { name: "Bus 77/201 - École du Breuil", ref: "STIF:StopPoint:Q:463644:" }
+    const stops = [
+      {{ name: "Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:43972" }},
+      {{ name: "École du Breuil", ref: "STIF:StopPoint:Q:43974" }}
     ];
-    const rerJoinvilleId = "stop_area:IDFM:43135:RER";
-    const velibStations = [12128, 12163];
+    const rerStops = [
+      {{ name: "Joinville-le-Pont", ref: "STIF:StopPoint:Q:43851" }}
+    ];
+    const velibStations = [
+      {{ name: "Hippodrome de Vincennes", station_id: "12029" }}
+    ];
 
-    async function fetchBus(ref) {
+    async function fetchDepartures(ref) {
       const res = await fetch(`https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${ref}`);
       if (!res.ok) return null;
       const data = await res.json();
@@ -71,7 +76,6 @@
         const call = visit.MonitoredVehicleJourney.MonitoredCall;
         if (!call || (!call.ExpectedArrivalTime && !call.AimedArrivalTime)) return;
         const dt = new Date(call.ExpectedArrivalTime || call.AimedArrivalTime);
-        if (isNaN(dt.getTime())) return;
         const now = new Date();
         const diffMin = Math.floor((dt - now) / 60000);
         if (diffMin < 2) return;
@@ -84,8 +88,8 @@
     async function showBus() {
       const container = document.getElementById("bus");
       container.innerHTML = "";
-      for (const stop of busStops) {
-        const visits = await fetchBus(stop.ref);
+      for (const stop of stops) {
+        const visits = await fetchDepartures(stop.ref);
         if (!visits) continue;
         const grouped = groupDepartures(visits);
         const section = document.createElement("div");
@@ -97,8 +101,27 @@
             const timeStr = dep.time.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
             section.innerHTML += `<div class="departure">Dans ${dep.inMin} min (${timeStr})</div>`;
           });
-          const last = grouped[dir][grouped[dir].length - 1].time;
-          section.innerHTML += `<div class="departure">Dernier : ${last.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</div>`;
+        }
+        container.appendChild(section);
+      }
+    }
+
+    async function showRER() {
+      const container = document.getElementById("rer");
+      container.innerHTML = "";
+      for (const stop of rerStops) {
+        const visits = await fetchDepartures(stop.ref);
+        if (!visits) continue;
+        const grouped = groupDepartures(visits);
+        const section = document.createElement("div");
+        section.className = "line";
+        section.innerHTML = `<h2>🚆 RER A – ${stop.name}</h2>`;
+        for (const dir in grouped) {
+          section.innerHTML += `<div><strong>${dir}</strong></div>`;
+          grouped[dir].forEach(dep => {
+            const timeStr = dep.time.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
+            section.innerHTML += `<div class="departure">Dans ${dep.inMin} min (${timeStr})</div>`;
+          });
         }
         container.appendChild(section);
       }
@@ -112,32 +135,11 @@
       if (!res.ok || !status.ok) return;
       const info = await res.json();
       const stat = await status.json();
-      velibStations.forEach(id => {
-        const target = info.data.stations.find(s => s.station_id == id);
-        const avail = stat.data.stations.find(s => s.station_id == id);
+      velibStations.forEach(({ station_id, name }) => {
+        const target = info.data.stations.find(s => s.station_id === station_id);
+        const avail = stat.data.stations.find(s => s.station_id === station_id);
         if (!target || !avail) return;
-        el.innerHTML += `<div class="departure">${target.name} : ${avail.num_bikes_available} vélos / ${avail.num_docks_available} bornes</div>`;
-      });
-    }
-
-    async function showRER() {
-      const rer = document.getElementById("rer");
-      rer.innerHTML = "";
-      const res = await fetch(`https://api.navitia.io/v1/coverage/fr-idf/stop_areas/${rerJoinvilleId}/departures?count=6`, {
-        headers: {
-          Authorization: "Basic Mk9KOEpGbG54alhCYnJ3WFRMTWl1bmlvcTg3Rk9RYzk6"
-        }
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      rer.innerHTML = `<h2>🚆 RER A - Joinville-le-Pont</h2>`;
-      const now = new Date();
-      data.departures.forEach(dep => {
-        const dt = new Date(dep.stop_date_time.departure_date_time);
-        const diff = Math.floor((dt - now) / 60000);
-        if (diff < 2) return;
-        const str = dt.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
-        rer.innerHTML += `<div class="departure">Dans ${diff} min (${str})</div>`;
+        el.innerHTML += `<div class="departure">${name} : ${avail.num_bikes_available} vélos / ${avail.num_docks_available} bornes</div>`;
       });
     }
 
@@ -169,8 +171,8 @@
     async function updateAll() {
       await showWeather();
       await showBus();
-      await showVelib();
       await showRER();
+      await showVelib();
       updateTimestamp();
     }
 
