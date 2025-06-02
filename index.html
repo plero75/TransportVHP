@@ -1,162 +1,133 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transports – Hippodrome de Vincennes</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transports - Hippodrome de Vincennes</title>
   <style>
     body {
       background: #000;
       color: #fff;
       font-family: Arial, sans-serif;
       padding: 20px;
-      max-width: 900px;
-      margin: auto;
     }
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 10px;
-    }
-    .section {
-      margin-top: 30px;
-      padding-top: 10px;
-      border-top: 1px solid #444;
-    }
-    .line { margin: 5px 0; }
-    .timestamp {
-      font-size: 0.8rem;
-      color: #aaa;
-      margin-top: 30px;
-    }
-    .error { color: #f55; }
+    h1 { text-align: center; margin-bottom: 30px; }
+    h2 { margin-top: 40px; border-top: 1px solid #666; padding-top: 20px; }
+    .section { margin-bottom: 20px; }
+    .line { margin-bottom: 8px; }
+    .timestamp { font-size: 0.8em; color: #aaa; text-align: center; margin-top: 30px; }
   </style>
 </head>
 <body>
-  <h1>⏱ Transports autour de l’Hippodrome de Vincennes</h1>
+  <h1>⏱️ Transports en Temps Réel – Hippodrome de Vincennes</h1>
 
   <div class="section" id="rer">
-    <h2>🚆 RER A – Joinville-le-Pont</h2>
-    <div id="rer-data" class="line">Chargement…</div>
+    <h2>🚉 RER A - Joinville-le-Pont</h2>
+    <div id="rer-data">Chargement...</div>
   </div>
 
   <div class="section" id="bus77">
-    <h2>🚌 Bus 77 – Hippodrome de Vincennes</h2>
-    <div id="bus77-data" class="line">Chargement…</div>
+    <h2>🚍 Bus 77 - Hippodrome de Vincennes</h2>
+    <div id="bus77-data">Chargement...</div>
   </div>
 
   <div class="section" id="bus201">
-    <h2>🚌 Bus 201 – École du Breuil</h2>
-    <div id="bus201-data" class="line">Chargement…</div>
+    <h2>🚍 Bus 201 - École du Breuil</h2>
+    <div id="bus201-data">Chargement...</div>
   </div>
 
   <div class="section" id="velib">
-    <h2>🚲 Vélib’</h2>
-    <div id="velib-data" class="line">Chargement…</div>
+    <h2>🚲 Vélib'</h2>
+    <div id="velib-data">Chargement...</div>
   </div>
 
-  <div class="timestamp" id="last-update">—</div>
+  <div class="timestamp" id="timestamp"></div>
 
   <script>
-    const WORKER_URL = "https://ratp-proxy.hippodrome-proxy42.workers.dev";
+    const proxyPrim = "https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=";
+    const proxyVelib = "https://velib-proxy.hippodrome-proxy42.workers.dev/?target=";
+
     const stops = {
       rer: "STIF:StopPoint:Q:43851:",
       bus77: "STIF:StopPoint:Q:463641:",
       bus201: "STIF:StopPoint:Q:463644:"
     };
-    const velibStations = [12128, 12163];
 
     async function fetchPrim(ref) {
-      try {
-        const res = await fetch(`${WORKER_URL}?ref=${encodeURIComponent(ref)}`);
-        const data = await res.json();
-        return data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
-      } catch (e) {
-        return null;
-      }
+      const res = await fetch(proxyPrim + encodeURIComponent(ref));
+      if (!res.ok) throw new Error("Erreur PRIM");
+      const data = await res.json();
+      return data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
     }
 
-    function formatTime(isoString) {
-      const dt = new Date(isoString);
-      return dt.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function groupByDirection(visits) {
+    function renderVisits(visits) {
+      if (visits.length === 0) return "Aucun passage disponible.";
       const grouped = {};
-      for (const v of visits) {
-        const dir = v.MonitoredVehicleJourney?.DirectionName?.value || "Sens inconnu";
+      visits.forEach(v => {
+        const dir = v.MonitoredVehicleJourney?.DirectionName?.value || "Direction inconnue";
         const dest = v.MonitoredVehicleJourney?.DestinationName?.value || "Terminus ?";
-        const line = v.MonitoredVehicleJourney?.PublishedLineName || "Ligne ?";
-        const time = v.MonitoredVehicleJourney?.MonitoredCall?.ExpectedArrivalTime;
-        if (!time) continue;
-        const label = `${line} vers ${dest} → ${formatTime(time)}`;
+        const time = new Date(v.MonitoredVehicleJourney?.MonitoredCall?.ExpectedArrivalTime);
+        const str = `➡ ${dest} → ${time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
         if (!grouped[dir]) grouped[dir] = [];
-        grouped[dir].push(label);
-      }
-      return grouped;
+        grouped[dir].push(str);
+      });
+      return Object.entries(grouped)
+        .map(([dir, list]) => `<strong>${dir}</strong><br>${list.join('<br>')}`)
+        .join("<br><br>");
     }
 
-    async function displayStop(id, ref) {
-      const el = document.getElementById(id);
-      const visits = await fetchPrim(ref);
-      if (!visits || visits.length === 0) {
-        el.innerHTML = "<span class='error'>Aucune donnée disponible</span>";
-        return;
+    async function showSection(id, refKey) {
+      try {
+        const visits = await fetchPrim(stops[refKey]);
+        document.getElementById(id).innerHTML = renderVisits(visits);
+      } catch {
+        document.getElementById(id).innerText = "Erreur de chargement.";
       }
-      const grouped = groupByDirection(visits);
-      let html = "";
-      for (const dir in grouped) {
-        html += `<strong>${dir}</strong><br>`;
-        html += grouped[dir].map(x => `• ${x}`).join("<br>") + "<br><br>";
-      }
-      el.innerHTML = html;
     }
 
-    async function getVelibData() {
+    async function showVelib() {
       try {
         const [statusRes, infoRes] = await Promise.all([
-          fetch("https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json"),
-          fetch("https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json")
+          fetch(proxyVelib + "station_status"),
+          fetch(proxyVelib + "station_information")
         ]);
         const status = await statusRes.json();
         const info = await infoRes.json();
 
-        const lines = velibStations.map(id => {
-          const sInfo = info.data.stations.find(s => s.station_id == id);
-          const sStat = status.data.stations.find(s => s.station_id == id);
-          if (!sInfo || !sStat) return null;
+        const stations = [12128, 12163];
+        const html = stations.map(id => {
+          const s = status.data.stations.find(e => e.station_id == id);
+          const i = info.data.stations.find(e => e.station_id == id);
+          if (!s || !i) return "";
+          const eb = s.num_bikes_available_types?.[0]?.ebike || 0;
+          const me = s.num_bikes_available_types?.[0]?.mechanical || 0;
+          return `<strong>${i.name}</strong> : 🔌 ${eb} / 🚲 ${me} – 🔹 ${s.num_docks_available} bornettes`;
+        }).join("<br>");
 
-          const name = sInfo.name;
-          const ebike = sStat.num_bikes_available_types?.[0]?.ebike || 0;
-          const mech = sStat.num_bikes_available_types?.[0]?.mechanical || 0;
-          const docks = sStat.num_docks_available;
-
-          return `<strong>${name}</strong> : 🔌 ${ebike} / 🚲 ${mech} — ${docks} bornes libres`;
-        }).filter(Boolean).join("<br>");
-
-        document.getElementById("velib-data").innerHTML = lines || "Pas de données Vélib'";
-      } catch {
-        document.getElementById("velib-data").innerHTML = "<span class='error'>Erreur de chargement Vélib'</span>";
+        document.getElementById("velib-data").innerHTML = html;
+      } catch (e) {
+        document.getElementById("velib-data").innerText = "Erreur de chargement Vélib'.";
       }
     }
 
     function updateTimestamp() {
       const now = new Date();
-      document.getElementById("last-update").innerText =
-        "Dernière mise à jour : " + now.toLocaleString("fr-FR");
+      document.getElementById("timestamp").innerText =
+        "Mise à jour : " + now.toLocaleString("fr-FR");
     }
 
-    async function refreshAll() {
+    async function updateAll() {
       await Promise.all([
-        displayStop("rer-data", stops.rer),
-        displayStop("bus77-data", stops.bus77),
-        displayStop("bus201-data", stops.bus201),
-        getVelibData()
+        showSection("rer-data", "rer"),
+        showSection("bus77-data", "bus77"),
+        showSection("bus201-data", "bus201"),
+        showVelib()
       ]);
       updateTimestamp();
     }
 
-    refreshAll();
-    setInterval(refreshAll, 60000);
+    updateAll();
+    setInterval(updateAll, 60000);
   </script>
 </body>
 </html>
