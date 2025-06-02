@@ -1,19 +1,37 @@
-
 body {
   background-color: #000;
   color: #fff;
   font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 20px;
 }
 h1 {
-  text-align: center;
+  margin: 0;
+  font-size: 2rem;
 }
 .section {
-  margin-top: 40px;
+  margin-top: 30px;
+  width: 100%;
+  max-width: 900px;
 }
-.red {
-  background-color: #ff4d4d;
+.line {
+  border-bottom: 1px solid #444;
+  padding: 10px 0;
 }
-.orange {
-  background-color: #ff9900;
+.departure {
+  margin-left: 20px;
+}
+.timestamp {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-top: 20px;
+}
+.imminent {
+  color: red;
+  font-weight: bold;
+}
+.warn {
+  background-color: rgba(255, 0, 0, 0.2);
 }
