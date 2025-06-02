@@ -33,11 +33,12 @@
       color: #aaa;
       margin-top: 10px;
     }
-    .urgent {
-      background-color: red;
-      padding: 4px;
-      border-radius: 3px;
-      color: white;
+    .soon {
+      color: orange;
+    }
+    .imminent {
+      color: red;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -47,16 +48,19 @@
   <div class="section" id="rer">
     <h2>🚆 RER A - Joinville-le-Pont</h2>
     <div class="line" id="rer-data">Chargement...</div>
+    <div class="line" id="rer-hours"></div>
   </div>
 
   <div class="section" id="bus77">
     <h2>🚌 Bus 77 - Hippodrome de Vincennes</h2>
     <div class="line" id="bus77-data">Chargement...</div>
+    <div class="line" id="bus77-hours"></div>
   </div>
 
   <div class="section" id="bus201">
     <h2>🚌 Bus 201 - École du Breuil</h2>
     <div class="line" id="bus201-data">Chargement...</div>
+    <div class="line" id="bus201-hours"></div>
   </div>
 
   <div class="section" id="velib">
@@ -67,14 +71,93 @@
   <div class="timestamp" id="last-update"></div>
 
   <footer style="margin-top: 40px; font-size: 0.8em; color: #aaa; text-align: center;">
-    Données issues de
-    <a href="https://www.velib-metropole.fr/donnees-open-data-gbfs-du-service-velib-metropole"
-       style="color:#88f;" target="_blank">l’Open Data Vélib’</a> et
-    <a href="https://prim.iledefrance-mobilites.fr/marketplace/"
-       style="color:#88f;" target="_blank">l’API PRIM</a>, disponibles sous
-    <a href="https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf"
-       style="color:#88f;" target="_blank">Licence Ouverte Etalab v2.0</a>.
+    Données issues des APIs IDFM et Vélib’ Métropole, sous
+    <a href="https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf" style="color:#88f;" target="_blank">Licence Ouverte Etalab v2.0</a>.
   </footer>
 
+  <script>
+    const workers = {
+      rer: "https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=43135",
+      bus77: "https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=463641",
+      bus201: "https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=463644"
+    };
+
+    function formatTimeLeft(date) {
+      const diff = (new Date(date) - new Date()) / 60000;
+      const mins = Math.round(diff);
+      if (mins <= 2) return `<span class='imminent'>Arrivée imminente</span>`;
+      if (mins <= 5) return `<span class='soon'>${mins} min</span>`;
+      return `${mins} min`;
+    }
+
+    async function loadPRIM(ref, divId, hourId) {
+      try {
+        const res = await fetch(workers[ref]);
+        const data = await res.json();
+        const visits = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
+        const service = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit?.[0]?.Extensions;
+
+        const lines = visits.slice(0, 5).map(v => {
+          const time = v.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime;
+          const line = v.MonitoredVehicleJourney.LineRef;
+          const dest = v.MonitoredVehicleJourney.DestinationName;
+          return `${line} : direction ${dest} → ${formatTimeLeft(time)}`;
+        }).join("<br>");
+
+        document.getElementById(divId).innerHTML = lines || "Aucun passage à venir.";
+        document.getElementById(hourId).innerText = service?.ServiceStartTime && service?.ServiceEndTime
+          ? `Horaires de service : ${service.ServiceStartTime} - ${service.ServiceEndTime}`
+          : "Horaires de service non disponibles.";
+
+      } catch (e) {
+        document.getElementById(divId).innerText = "Erreur de chargement.";
+      }
+    }
+
+    async function getVelibData() {
+      try {
+        const [statusRes, infoRes] = await Promise.all([
+          fetch("https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json"),
+          fetch("https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json")
+        ]);
+        const statusData = await statusRes.json();
+        const infoData = await infoRes.json();
+
+        const stations = infoData.data.stations.filter(s => ["12128", "12163"].includes(s.station_id));
+        const html = stations.map(station => {
+          const status = statusData.data.stations.find(s => s.station_id == station.station_id);
+          if (!status) return null;
+          const total = status.num_bikes_available;
+          const elect = status.num_bikes_available_types?.[0]?.ebike || 0;
+          const mech = status.num_bikes_available_types?.[0]?.mechanical || 0;
+          const docks = status.num_docks_available;
+          return `<strong>${station.name}</strong> : ${total} vélos (🔌 ${elect} / 🚲 ${mech}) – ${docks} bornettes libres`;
+        }).filter(Boolean).join("<br>");
+
+        document.getElementById("velib-data").innerHTML = html || "Pas d'information disponible.";
+      } catch (e) {
+        document.getElementById("velib-data").innerText = "Erreur de chargement.";
+      }
+    }
+
+    function updateTimestamp() {
+      const now = new Date();
+      document.getElementById("last-update").innerText =
+        "Dernière mise à jour : " + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function refreshAll() {
+      await Promise.all([
+        loadPRIM("rer", "rer-data", "rer-hours"),
+        loadPRIM("bus77", "bus77-data", "bus77-hours"),
+        loadPRIM("bus201", "bus201-data", "bus201-hours"),
+        getVelibData()
+      ]);
+      updateTimestamp();
+    }
+
+    refreshAll();
+    setInterval(refreshAll, 60000);
+  </script>
 </body>
 </html>
