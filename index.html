@@ -1,153 +1,20 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Infos Transport Vincennes</title>
-  <style>
-    body {
-      background-color: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-    }
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 20px;
-    }
-    .section {
-      margin-top: 30px;
-      width: 100%;
-      max-width: 800px;
-      border-top: 1px solid #555;
-      padding-top: 20px;
-    }
-    .line {
-      margin-bottom: 10px;
-    }
-    .timestamp {
-      font-size: 0.8rem;
-      color: #aaa;
-      margin-top: 10px;
-    }
-    .alert-soon { color: red; font-weight: bold; }
-    .imminent { background: red; color: white; padding: 2px 6px; border-radius: 3px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Tableau Transport Vincennes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Infos Transport - Hippodrome de Vincennes</h1>
+  <h1>🟡 Informations Transports - Hippodrome de Vincennes</h1>
+  <div id="clock"></div>
 
-  <div class="section" id="rer">
-    <h2>🚉 RER A - Joinville-le-Pont</h2>
-    <div class="line" id="rer-data">Chargement...</div>
-  </div>
+  <div class="section" id="rer-section"><h2>🚆 RER A - Joinville-le-Pont</h2><div id="rer"></div></div>
+  <div class="section" id="bus77-section"><h2>🚌 Bus 77 - Hippodrome</h2><div id="bus77"></div></div>
+  <div class="section" id="bus201-section"><h2>🚌 Bus 201 - École du Breuil</h2><div id="bus201"></div></div>
+  <div class="section" id="velib-section"><h2>🚲 Vélib’</h2><div id="velib"></div></div>
 
-  <div class="section" id="bus77">
-    <h2>🚌 Bus 77 - Hippodrome de Vincennes</h2>
-    <div class="line" id="bus77-data">Chargement...</div>
-  </div>
-
-  <div class="section" id="bus201">
-    <h2>🚌 Bus 201 - École du Breuil</h2>
-    <div class="line" id="bus201-data">Chargement...</div>
-  </div>
-
-  <div class="section" id="velib">
-    <h2>🚲 Disponibilité Vélib’</h2>
-    <div class="line" id="velib-data">Chargement...</div>
-  </div>
-
-  <div class="timestamp" id="last-update"></div>
-
-  <footer style="margin-top: 40px; font-size: 0.8em; color: #aaa; text-align: center;">
-    Données issues des APIs IDFM et Vélib’ Métropole, sous
-    <a href="https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf"
-       style="color:#88f;" target="_blank">Licence Ouverte Etalab v2.0</a>.
-  </footer>
-
-  <script>
-    const proxy = "https://ratp-proxy.hippodrome-proxy42.workers.dev/";
-
-    async function fetchDepartures(ref, elemId) {
-      try {
-        const res = await fetch(`${proxy}?ref=${ref}`);
-        const data = await res.json();
-        const visits = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
-        const service = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit;
-
-        const html = visits.slice(0, 5).map(v => {
-          const line = v.MonitoredVehicleJourney?.PublishedLineName || v.MonitoredVehicleJourney?.LineRef || "?";
-          const dest = v.MonitoredVehicleJourney?.DestinationName || "?";
-          const timeStr = v.MonitoredVehicleJourney?.MonitoredCall?.ExpectedArrivalTime;
-          const time = new Date(timeStr);
-          const now = new Date();
-          const diff = Math.floor((time - now) / 60000);
-
-          let style = "";
-          if (diff < 2) style = '<span class="imminent">Arrivée imminente</span>';
-          else if (diff < 5) style = `<span class="alert-soon">${diff} min</span>`;
-          else style = `${diff} min`;
-
-          return `${line} → ${dest} : ${style} (${time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
-        }).join("<br>");
-
-        document.getElementById(elemId).innerHTML = html || "Aucun passage à venir.";
-      } catch (e) {
-        document.getElementById(elemId).innerText = "Erreur de chargement.";
-      }
-    }
-
-    async function getVelibData() {
-      try {
-        const [statusRes, infoRes] = await Promise.all([
-          fetch(`${proxy}?target=station_status`),
-          fetch(`${proxy}?target=station_information`)
-        ]);
-        const statusData = await statusRes.json();
-        const infoData = await infoRes.json();
-
-        const stations = infoData.data.stations.filter(station =>
-          ["12128", "12163"].includes(station.station_id)
-        );
-
-        const html = stations.map(station => {
-          const status = statusData.data.stations.find(s => s.station_id == station.station_id);
-          if (!status) return null;
-
-          const elect = status.num_bikes_available_types?.[0]?.ebike || 0;
-          const mech = status.num_bikes_available_types?.[0]?.mechanical || 0;
-          const docks = status.num_docks_available;
-
-          return `<strong>${station.name}</strong> : 🔌 ${elect} / 🚲 ${mech} – ${docks} bornes libres`;
-        }).filter(Boolean).join("<br>");
-
-        document.getElementById("velib-data").innerHTML = html || "Pas d'information disponible.";
-      } catch (e) {
-        document.getElementById("velib-data").innerText = "Erreur de chargement.";
-      }
-    }
-
-    function updateTimestamp() {
-      const now = new Date();
-      document.getElementById("last-update").innerText =
-        "Dernière mise à jour : " + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    async function refreshAll() {
-      await Promise.all([
-        fetchDepartures("STIF:StopPoint:Q:43135:", "rer-data"),
-        fetchDepartures("STIF:StopPoint:Q:463641:", "bus77-data"),
-        fetchDepartures("STIF:StopPoint:Q:463644:", "bus201-data"),
-        getVelibData()
-      ]);
-      updateTimestamp();
-    }
-
-    refreshAll();
-    setInterval(refreshAll, 60000);
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
