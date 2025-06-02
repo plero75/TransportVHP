@@ -1,27 +1,19 @@
 
 body {
-  background: #111;
+  background-color: #000;
   color: #fff;
   font-family: Arial, sans-serif;
   padding: 20px;
 }
-h1, h2 {
+h1 {
   text-align: center;
 }
 .section {
-  margin-top: 20px;
-  padding: 10px;
-  border: 1px solid #444;
+  margin-top: 40px;
 }
-.alert {
-  background-color: red;
-  color: white;
-  padding: 2px 4px;
-  margin-left: 10px;
+.red {
+  background-color: #ff4d4d;
 }
-.imminent {
-  background-color: orange;
-  color: black;
-  padding: 2px 4px;
-  margin-left: 10px;
+.orange {
+  background-color: #ff9900;
 }
