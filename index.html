@@ -1,126 +1,80 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tableau Transports - Hippodrome Vincennes</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tableau Transport Vincennes</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #000;
+      background-color: #000;
       color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       padding: 20px;
     }
     h1 {
-      text-align: center;
-      font-size: 1.6em;
+      font-size: 2rem;
+      margin-bottom: 20px;
     }
     .section {
       margin-top: 30px;
+      width: 100%;
+      max-width: 800px;
+      border-top: 1px solid #555;
+      padding-top: 20px;
     }
     .line {
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
     .timestamp {
-      font-size: 0.8em;
+      font-size: 0.8rem;
       color: #aaa;
-      margin-top: 20px;
-      text-align: center;
+      margin-top: 10px;
+    }
+    .urgent {
+      background-color: red;
+      padding: 4px;
+      border-radius: 3px;
+      color: white;
     }
   </style>
 </head>
 <body>
-  <h1>⏱️ Transports en Temps Réel – Hippodrome de Vincennes</h1>
+  <h1>Infos Transport - Hippodrome de Vincennes</h1>
 
-  <div class="section" id="bus-rer">
-    <h2>🚌 Bus & RER</h2>
-    <div class="line" id="ratp"></div>
+  <div class="section" id="rer">
+    <h2>🚆 RER A - Joinville-le-Pont</h2>
+    <div class="line" id="rer-data">Chargement...</div>
+  </div>
+
+  <div class="section" id="bus77">
+    <h2>🚌 Bus 77 - Hippodrome de Vincennes</h2>
+    <div class="line" id="bus77-data">Chargement...</div>
+  </div>
+
+  <div class="section" id="bus201">
+    <h2>🚌 Bus 201 - École du Breuil</h2>
+    <div class="line" id="bus201-data">Chargement...</div>
   </div>
 
   <div class="section" id="velib">
-    <h2>🚲 Vélib'</h2>
-    <div class="line" id="velib"></div>
+    <h2>🚲 Disponibilité Vélib’</h2>
+    <div class="line" id="velib-data">Chargement...</div>
   </div>
 
-  <div class="timestamp" id="timestamp"></div>
+  <div class="timestamp" id="last-update"></div>
 
-  <script>
-    const primRefs = [
-      { name: "Bus 77 – Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:463641:" },
-      { name: "Bus 201 – École du Breuil", ref: "STIF:StopPoint:Q:463644:" },
-      { name: "RER A – Joinville-le-Pont", ref: "STIF:StopPoint:Q:43135:" }
-    ];
-    const velibStations = ["12128", "12163"];
+  <footer style="margin-top: 40px; font-size: 0.8em; color: #aaa; text-align: center;">
+    Données issues de
+    <a href="https://www.velib-metropole.fr/donnees-open-data-gbfs-du-service-velib-metropole"
+       style="color:#88f;" target="_blank">l’Open Data Vélib’</a> et
+    <a href="https://prim.iledefrance-mobilites.fr/marketplace/"
+       style="color:#88f;" target="_blank">l’API PRIM</a>, disponibles sous
+    <a href="https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf"
+       style="color:#88f;" target="_blank">Licence Ouverte Etalab v2.0</a>.
+  </footer>
 
-    async function fetchDepartures(ref) {
-      const url = `https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${encodeURIComponent(ref)}`;
-      const res = await fetch(url);
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
-    }
-
-    async function showRATP() {
-      const container = document.getElementById("ratp");
-      container.innerHTML = "";
-
-      for (const stop of primRefs) {
-        const visits = await fetchDepartures(stop.ref);
-        if (!visits.length) {
-          container.innerHTML += `<div class="line"><strong>${stop.name}</strong> : Aucun départ</div>`;
-          continue;
-        }
-        container.innerHTML += `<div><strong>${stop.name}</strong></div>`;
-        visits.slice(0, 5).forEach(v => {
-          const line = v.MonitoredVehicleJourney.LineRef || "?";
-          const dest = v.MonitoredVehicleJourney.DestinationName || "?";
-          const t = v.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime || v.MonitoredVehicleJourney.MonitoredCall.AimedArrivalTime;
-          const timeStr = new Date(t).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
-          container.innerHTML += `<div class="line">→ ${dest} (Ligne ${line}) : ${timeStr}</div>`;
-        });
-      }
-    }
-
-    async function showVelib() {
-      const el = document.getElementById("velib");
-      el.innerHTML = "Chargement...";
-      try {
-        const [infoRes, statusRes] = await Promise.all([
-          fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_information"),
-          fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_status")
-        ]);
-        const info = await infoRes.json();
-        const stat = await statusRes.json();
-
-        const html = velibStations.map(id => {
-          const station = info.data.stations.find(s => s.station_id == id);
-          const state = stat.data.stations.find(s => s.station_id == id);
-          if (!station || !state) return null;
-          const name = station.name;
-          const docks = state.num_docks_available;
-          const elect = state.num_bikes_available_types?.[0]?.ebike || 0;
-          const mech = state.num_bikes_available_types?.[0]?.mechanical || 0;
-          return `<div class="line"><strong>${name}</strong> : 🚗 ${mech} / 🔌 ${elect} — ${docks} bornes libres</div>`;
-        }).filter(Boolean);
-
-        el.innerHTML = html.length ? html.join("") : "Aucune info disponible.";
-      } catch (e) {
-        el.innerText = "Erreur de chargement des données Vélib'.";
-      }
-    }
-
-    function updateTimestamp() {
-      const now = new Date();
-      document.getElementById("timestamp").textContent = `Dernière mise à jour : ${now.toLocaleDateString("fr-FR", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} — ${now.toLocaleTimeString("fr-FR")}`;
-    }
-
-    async function refresh() {
-      await Promise.all([showRATP(), showVelib()]);
-      updateTimestamp();
-    }
-
-    refresh();
-    setInterval(refresh, 60000);
-  </script>
 </body>
 </html>
