@@ -1,77 +1,80 @@
-// script.js compatible GitHub Pages avec AllOrigins (sans apikey)
-const allOriginsBase = "https://api.allorigins.win/raw?url=";
+async function fetchTransportData(ref, targetId, label) {
+  const url = `https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=STIF:StopPoint:Q:${ref}:`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Erreur API PRIM");
+    const data = await res.json();
 
-const endpoints = {
-  rerA: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:43159:`,
-  bus77: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44304:`,
-  bus201: `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopPoint:Q:44489:`,
-  velibStatus: `https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json`,
-  velibInfo: `https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json`
-};
+    const container = document.getElementById(targetId);
+    container.innerHTML = `<h2>${label}</h2>`;
 
-function fetchPrimAPI(url, callback) {
-  fetch(allOriginsBase + encodeURIComponent(url))
-    .then(response => response.json())
-    .then(callback)
-    .catch(error => console.error("Erreur RATP:", error));
+    if (!data.departures || data.departures.length === 0) {
+      container.innerHTML += '<div>Pas de départ prochainement</div>';
+      return;
+    }
+
+    data.departures.forEach(dep => {
+      const delay = dep.delay;
+      let style = '';
+      if (delay <= 2) style = 'class="alert"';
+      else if (delay <= 5) style = 'class="imminent"';
+
+      container.innerHTML += `<div ${style}>${dep.time} → ${dep.destination}</div>`;
+    });
+
+    container.innerHTML += `<div><em>Service : ${data.service_start} - ${data.service_end}</em></div>`;
+  } catch (err) {
+    const container = document.getElementById(targetId);
+    container.innerHTML = `<h2>${label}</h2><div>Erreur de chargement</div>`;
+  }
 }
 
-function updateTime() {
-  const now = new Date();
-  document.getElementById("last-update").textContent = now.toLocaleString("fr-FR");
+async function fetchVelibData() {
+  const infoURL = 'https://velib-proxy.hippodrome-proxy42.workers.dev/?url=https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json';
+  const statusURL = 'https://velib-proxy.hippodrome-proxy42.workers.dev/?url=https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json';
+
+  try {
+    const [infoRes, statusRes] = await Promise.all([fetch(infoURL), fetch(statusURL)]);
+    const info = await infoRes.json();
+    const status = await statusRes.json();
+
+    const stationIds = ['12128', '12163'];
+    const container = document.getElementById('velib');
+    container.innerHTML = '<h2>Stations Vélib’</h2>';
+
+    stationIds.forEach(id => {
+      const stat = status.data.stations.find(s => s.station_id === id);
+      const infoObj = info.data.stations.find(s => s.station_id === id);
+
+      if (!stat || !infoObj) {
+        container.innerHTML += `<div>Station ${id} non trouvée</div>`;
+        return;
+      }
+
+      const mech = stat.num_bikes_available_types.find(t => t.mechanical)?.mechanical || 0;
+      const elec = stat.num_bikes_available_types.find(t => t.ebike)?.ebike || 0;
+
+      container.innerHTML += `
+        <div><strong>${infoObj.name}</strong> (${infoObj.address})<br>
+        🚲 ${mech} mécaniques | ⚡ ${elec} électriques | 🅿️ ${stat.num_docks_available} bornettes libres</div><br>`;
+    });
+
+  } catch (err) {
+    document.getElementById('velib').innerHTML = 'Erreur chargement Vélib';
+  }
 }
 
-function displayRER() {
-  fetchPrimAPI(endpoints.rerA, data => {
-    const info = data.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit;
-    if (!info) return document.getElementById("rer-a").innerText = "Aucune donnée";
-    const html = info.map(el => {
-      const ligne = el.MonitoredVehicleJourney.PublishedLineName;
-      const dest = el.MonitoredVehicleJourney.DestinationName;
-      const time = new Date(el.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime);
-      return `→ ${dest} (Ligne ${ligne}) : ${time.getHours()}h${time.getMinutes().toString().padStart(2, '0')}`;
-    }).join("<br>");
-    document.getElementById("rer-a").innerHTML = html;
-  });
+function refreshAll() {
+  fetchTransportData(43135, 'rerA', '🚈 RER A - Joinville-le-Pont');
+  fetchTransportData(463641, 'bus77', '🚌 Bus 77 - Hippodrome');
+  fetchTransportData(463644, 'bus201', '🚌 Bus 201 - École du Breuil');
+  fetchVelibData();
 }
 
-function displayBus(id, endpoint) {
-  fetchPrimAPI(endpoint, data => {
-    const info = data.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit;
-    if (!info) return document.getElementById(id).innerText = "Aucune donnée";
-    const html = info.map(el => {
-      const dest = el.MonitoredVehicleJourney.DestinationName;
-      const time = new Date(el.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime);
-      return `→ ${dest} : ${time.getHours()}h${time.getMinutes().toString().padStart(2, '0')}`;
-    }).join("<br>");
-    document.getElementById(id).innerHTML = html;
-  });
-}
+setInterval(refreshAll, 60000);
+refreshAll();
 
-function displayVelib() {
-  Promise.all([
-    fetch(allOriginsBase + encodeURIComponent(endpoints.velibStatus)).then(res => res.json()),
-    fetch(allOriginsBase + encodeURIComponent(endpoints.velibInfo)).then(res => res.json())
-  ]).then(([status, info]) => {
-    const ids = [12128, 12163];
-    const html = ids.map(id => {
-      const stat = status.data.stations.find(s => s.station_id == id);
-      const inf = info.data.stations.find(s => s.station_id == id);
-      return `<strong>${inf.name}</strong> : ${stat.num_bikes_available} vélos dont ${stat.num_ebikes_available} électriques, ${stat.num_docks_available} places dispo.`;
-    }).join("<br>");
-    document.getElementById("velib").innerHTML = html;
-  }).catch(err => {
-    document.getElementById("velib").innerText = "Erreur Vélib'";
-    console.error("Erreur Vélib'", err);
-  });
-}
-
-function init() {
-  updateTime();
-  displayRER();
-  displayBus("bus-77", endpoints.bus77);
-  displayBus("bus-201", endpoints.bus201);
-  displayVelib();
-}
-
-init();
+setInterval(() => {
+  const clock = document.getElementById('clock');
+  if (clock) clock.innerText = new Date().toLocaleTimeString();
+}, 1000);
