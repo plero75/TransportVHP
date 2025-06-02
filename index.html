@@ -3,131 +3,124 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Transports - Hippodrome de Vincennes</title>
+  <title>Tableau Transports - Hippodrome Vincennes</title>
   <style>
     body {
+      font-family: Arial, sans-serif;
       background: #000;
       color: #fff;
-      font-family: Arial, sans-serif;
       padding: 20px;
     }
-    h1 { text-align: center; margin-bottom: 30px; }
-    h2 { margin-top: 40px; border-top: 1px solid #666; padding-top: 20px; }
-    .section { margin-bottom: 20px; }
-    .line { margin-bottom: 8px; }
-    .timestamp { font-size: 0.8em; color: #aaa; text-align: center; margin-top: 30px; }
+    h1 {
+      text-align: center;
+      font-size: 1.6em;
+    }
+    .section {
+      margin-top: 30px;
+    }
+    .line {
+      margin-bottom: 15px;
+    }
+    .timestamp {
+      font-size: 0.8em;
+      color: #aaa;
+      margin-top: 20px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <h1>⏱️ Transports en Temps Réel – Hippodrome de Vincennes</h1>
 
-  <div class="section" id="rer">
-    <h2>🚉 RER A - Joinville-le-Pont</h2>
-    <div id="rer-data">Chargement...</div>
-  </div>
-
-  <div class="section" id="bus77">
-    <h2>🚍 Bus 77 - Hippodrome de Vincennes</h2>
-    <div id="bus77-data">Chargement...</div>
-  </div>
-
-  <div class="section" id="bus201">
-    <h2>🚍 Bus 201 - École du Breuil</h2>
-    <div id="bus201-data">Chargement...</div>
+  <div class="section" id="bus-rer">
+    <h2>🚌 Bus & RER</h2>
+    <div class="line" id="ratp"></div>
   </div>
 
   <div class="section" id="velib">
     <h2>🚲 Vélib'</h2>
-    <div id="velib-data">Chargement...</div>
+    <div class="line" id="velib"></div>
   </div>
 
   <div class="timestamp" id="timestamp"></div>
 
   <script>
-    const proxyPrim = "https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=";
-    const proxyVelib = "https://velib-proxy.hippodrome-proxy42.workers.dev/?target=";
+    const primRefs = [
+      { name: "Bus 77 – Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:463641:" },
+      { name: "Bus 201 – École du Breuil", ref: "STIF:StopPoint:Q:463644:" },
+      { name: "RER A – Joinville-le-Pont", ref: "STIF:StopPoint:Q:43135:" }
+    ];
+    const velibStations = ["12128", "12163"];
 
-    const stops = {
-      rer: "STIF:StopPoint:Q:43851:",
-      bus77: "STIF:StopPoint:Q:463641:",
-      bus201: "STIF:StopPoint:Q:463644:"
-    };
-
-    async function fetchPrim(ref) {
-      const res = await fetch(proxyPrim + encodeURIComponent(ref));
-      if (!res.ok) throw new Error("Erreur PRIM");
-      const data = await res.json();
-      return data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
+    async function fetchDepartures(ref) {
+      const url = `https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${encodeURIComponent(ref)}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
     }
 
-    function renderVisits(visits) {
-      if (visits.length === 0) return "Aucun passage disponible.";
-      const grouped = {};
-      visits.forEach(v => {
-        const dir = v.MonitoredVehicleJourney?.DirectionName?.value || "Direction inconnue";
-        const dest = v.MonitoredVehicleJourney?.DestinationName?.value || "Terminus ?";
-        const time = new Date(v.MonitoredVehicleJourney?.MonitoredCall?.ExpectedArrivalTime);
-        const str = `➡ ${dest} → ${time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
-        if (!grouped[dir]) grouped[dir] = [];
-        grouped[dir].push(str);
-      });
-      return Object.entries(grouped)
-        .map(([dir, list]) => `<strong>${dir}</strong><br>${list.join('<br>')}`)
-        .join("<br><br>");
-    }
+    async function showRATP() {
+      const container = document.getElementById("ratp");
+      container.innerHTML = "";
 
-    async function showSection(id, refKey) {
-      try {
-        const visits = await fetchPrim(stops[refKey]);
-        document.getElementById(id).innerHTML = renderVisits(visits);
-      } catch {
-        document.getElementById(id).innerText = "Erreur de chargement.";
+      for (const stop of primRefs) {
+        const visits = await fetchDepartures(stop.ref);
+        if (!visits.length) {
+          container.innerHTML += `<div class="line"><strong>${stop.name}</strong> : Aucun départ</div>`;
+          continue;
+        }
+        container.innerHTML += `<div><strong>${stop.name}</strong></div>`;
+        visits.slice(0, 5).forEach(v => {
+          const line = v.MonitoredVehicleJourney.LineRef || "?";
+          const dest = v.MonitoredVehicleJourney.DestinationName || "?";
+          const t = v.MonitoredVehicleJourney.MonitoredCall.ExpectedArrivalTime || v.MonitoredVehicleJourney.MonitoredCall.AimedArrivalTime;
+          const timeStr = new Date(t).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
+          container.innerHTML += `<div class="line">→ ${dest} (Ligne ${line}) : ${timeStr}</div>`;
+        });
       }
     }
 
     async function showVelib() {
+      const el = document.getElementById("velib");
+      el.innerHTML = "Chargement...";
       try {
-        const [statusRes, infoRes] = await Promise.all([
-          fetch(proxyVelib + "station_status"),
-          fetch(proxyVelib + "station_information")
+        const [infoRes, statusRes] = await Promise.all([
+          fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_information"),
+          fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_status")
         ]);
-        const status = await statusRes.json();
         const info = await infoRes.json();
+        const stat = await statusRes.json();
 
-        const stations = [12128, 12163];
-        const html = stations.map(id => {
-          const s = status.data.stations.find(e => e.station_id == id);
-          const i = info.data.stations.find(e => e.station_id == id);
-          if (!s || !i) return "";
-          const eb = s.num_bikes_available_types?.[0]?.ebike || 0;
-          const me = s.num_bikes_available_types?.[0]?.mechanical || 0;
-          return `<strong>${i.name}</strong> : 🔌 ${eb} / 🚲 ${me} – 🔹 ${s.num_docks_available} bornettes`;
-        }).join("<br>");
+        const html = velibStations.map(id => {
+          const station = info.data.stations.find(s => s.station_id == id);
+          const state = stat.data.stations.find(s => s.station_id == id);
+          if (!station || !state) return null;
+          const name = station.name;
+          const docks = state.num_docks_available;
+          const elect = state.num_bikes_available_types?.[0]?.ebike || 0;
+          const mech = state.num_bikes_available_types?.[0]?.mechanical || 0;
+          return `<div class="line"><strong>${name}</strong> : 🚗 ${mech} / 🔌 ${elect} — ${docks} bornes libres</div>`;
+        }).filter(Boolean);
 
-        document.getElementById("velib-data").innerHTML = html;
+        el.innerHTML = html.length ? html.join("") : "Aucune info disponible.";
       } catch (e) {
-        document.getElementById("velib-data").innerText = "Erreur de chargement Vélib'.";
+        el.innerText = "Erreur de chargement des données Vélib'.";
       }
     }
 
     function updateTimestamp() {
       const now = new Date();
-      document.getElementById("timestamp").innerText =
-        "Mise à jour : " + now.toLocaleString("fr-FR");
+      document.getElementById("timestamp").textContent = `Dernière mise à jour : ${now.toLocaleDateString("fr-FR", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} — ${now.toLocaleTimeString("fr-FR")}`;
     }
 
-    async function updateAll() {
-      await Promise.all([
-        showSection("rer-data", "rer"),
-        showSection("bus77-data", "bus77"),
-        showSection("bus201-data", "bus201"),
-        showVelib()
-      ]);
+    async function refresh() {
+      await Promise.all([showRATP(), showVelib()]);
       updateTimestamp();
     }
 
-    updateAll();
-    setInterval(updateAll, 60000);
+    refresh();
+    setInterval(refresh, 60000);
   </script>
 </body>
 </html>
