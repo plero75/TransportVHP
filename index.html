@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tableau Transports - Vincennes</title>
+  <title>Tableau Transport Vincennes</title>
   <style>
     body {
       background-color: #000;
@@ -15,178 +15,122 @@
       padding: 20px;
     }
     h1 {
-      margin: 0;
       font-size: 2rem;
+      margin-bottom: 20px;
     }
     .section {
       margin-top: 30px;
       width: 100%;
-      max-width: 900px;
+      max-width: 800px;
+      border-top: 1px solid #555;
+      padding-top: 20px;
     }
     .line {
-      border-bottom: 1px solid #444;
-      padding: 10px 0;
-    }
-    .line h2 {
-      margin: 0 0 10px;
-    }
-    .departure {
-      margin-left: 20px;
+      margin-bottom: 10px;
     }
     .timestamp {
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       color: #aaa;
-      margin-top: 20px;
-      text-align: center;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <h1>⏱ Transports en Temps Réel – Hippodrome de Vincennes</h1>
-  <div class="section" id="weather"></div>
-  <div class="section" id="bus"></div>
-  <div class="section" id="rer"></div>
-  <div class="section" id="velib"></div>
-  <div class="timestamp" id="timestamp"></div>
+  <h1>Infos Transport - Hippodrome de Vincennes</h1>
+
+  <div class="section" id="ratp">
+    <h2>🚌 Prochains passages (Bus & RER)</h2>
+    <div class="line" id="ratp-data">Chargement...</div>
+  </div>
+
+  <div class="section" id="velib">
+    <h2>🚲 Disponibilité Vélib’</h2>
+    <div class="line" id="velib-data">Chargement...</div>
+  </div>
+
+  <div class="timestamp" id="last-update"></div>
+
+  <footer style="margin-top: 40px; font-size: 0.8em; color: #aaa; text-align: center;">
+    Données Vélib’ Métropole issues de
+    <a href="https://www.velib-metropole.fr/donnees-open-data-gbfs-du-service-velib-metropole"
+       style="color:#88f;" target="_blank">l’Open Data Vélib’</a>,
+    disponibles sous
+    <a href="https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf"
+       style="color:#88f;" target="_blank">Licence Ouverte Etalab v2.0</a>.
+  </footer>
 
   <script>
-    const stops = [
-      { name: "Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:43972:" },
-      { name: "École du Breuil", ref: "STIF:StopPoint:Q:43974:" }
-    ];
+    const primRef = "463641"; // ZDAID de l'arrêt Hippodrome de Vincennes
+    const proxyUrl = "https://ratp-proxy.plero75.workers.dev/?ref=" + primRef;
 
-    const rerStops = [
-      { name: "Joinville-le-Pont", ref: "STIF:StopPoint:Q:43851:" }
-    ];
-
-    const velibStations = [
-      { name: "Hippodrome de Vincennes", station_id: "12029" }
-    ];
-
-    async function fetchDepartures(ref) {
-      const res = await fetch(`https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${encodeURIComponent(ref)}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
-    }
-
-    function groupDepartures(visits) {
-      const grouped = {};
-      visits.forEach(visit => {
-        const dirRaw = visit.MonitoredVehicleJourney.DirectionName;
-        const dir = dirRaw?.value || dirRaw || "Direction inconnue";
-        const call = visit.MonitoredVehicleJourney.MonitoredCall;
-        if (!call || (!call.ExpectedArrivalTime && !call.AimedArrivalTime)) return;
-        const dt = new Date(call.ExpectedArrivalTime || call.AimedArrivalTime);
-        const now = new Date();
-        const diffMin = Math.floor((dt - now) / 60000);
-        if (diffMin < 2) return;
-        if (!grouped[dir]) grouped[dir] = [];
-        grouped[dir].push({ time: dt, inMin: diffMin });
-      });
-      return grouped;
-    }
-
-    async function showBus() {
-      const container = document.getElementById("bus");
-      container.innerHTML = "";
-      for (const stop of stops) {
-        const visits = await fetchDepartures(stop.ref);
-        if (!visits) continue;
-        const grouped = groupDepartures(visits);
-        const section = document.createElement("div");
-        section.className = "line";
-        section.innerHTML = `<h2>🚌 ${stop.name}</h2>`;
-        for (const dir in grouped) {
-          section.innerHTML += `<div><strong>${dir}</strong></div>`;
-          grouped[dir].forEach(dep => {
-            const timeStr = dep.time.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
-            section.innerHTML += `<div class="departure">Dans ${dep.inMin} min (${timeStr})</div>`;
-          });
-        }
-        container.appendChild(section);
-      }
-    }
-
-    async function showRER() {
-      const container = document.getElementById("rer");
-      container.innerHTML = "";
-      for (const stop of rerStops) {
-        const visits = await fetchDepartures(stop.ref);
-        if (!visits) continue;
-        const grouped = groupDepartures(visits);
-        const section = document.createElement("div");
-        section.className = "line";
-        section.innerHTML = `<h2>🚆 RER A – ${stop.name}</h2>`;
-        for (const dir in grouped) {
-          section.innerHTML += `<div><strong>${dir}</strong></div>`;
-          grouped[dir].forEach(dep => {
-            const timeStr = dep.time.toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' });
-            section.innerHTML += `<div class="departure">Dans ${dep.inMin} min (${timeStr})</div>`;
-          });
-        }
-        container.appendChild(section);
-      }
-    }
-
-    async function showVelib() {
-      const el = document.getElementById("velib");
-      el.innerHTML = "<h2>🚲 Vélib'</h2>";
+    async function getRatpData() {
       try {
-        const [infoRes, statRes] = await Promise.all([
-          fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_information"),
-          fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_status")
-        ]);
-        const info = await infoRes.json();
-        const stat = await statRes.json();
-        velibStations.forEach(({ station_id, name }) => {
-          const target = info.data.stations.find(s => s.station_id === station_id);
-          const avail = stat.data.stations.find(s => s.station_id === station_id);
-          if (!target || !avail) return;
-          el.innerHTML += `<div class="departure">${name} : ${avail.num_bikes_available} vélos / ${avail.num_docks_available} bornes</div>`;
+        const res = await fetch(proxyUrl);
+        const data = await res.json();
+        const visits = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit;
+
+        if (!visits || visits.length === 0) {
+          document.getElementById("ratp-data").innerText = "Aucun passage à venir.";
+          return;
+        }
+
+        const lignes = visits.slice(0, 5).map(v => {
+          const line = v.MonitoredVehicleJourney?.LineRef || "Ligne ?";
+          const dest = v.MonitoredVehicleJourney?.DestinationName || "Terminus ?";
+          const time = new Date(v.MonitoredVehicleJourney?.MonitoredCall?.ExpectedArrivalTime);
+          return `${line} : direction ${dest} → ${time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         });
-      } catch (err) {
-        el.innerHTML += `<div class="departure">Erreur de chargement Vélib'</div>`;
+
+        document.getElementById("ratp-data").innerHTML = lignes.join("<br>");
+      } catch (e) {
+        document.getElementById("ratp-data").innerText = "Erreur de chargement des données RATP.";
       }
     }
 
-    async function showWeather() {
-      const el = document.getElementById("weather");
-      el.innerHTML = "";
-      const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=48.8328&longitude=2.4359&current_weather=true");
-      if (!res.ok) return;
-      const data = await res.json();
-      const temp = data.current_weather.temperature;
-      const cond = data.current_weather.weathercode;
-      const icon = cond < 3 ? "☀️" : cond < 60 ? "⛅" : "🌧️";
-      el.innerHTML = `<h2>${icon} Météo à Vincennes</h2>
-        <div class="departure">${temp}°C - ${getWeatherDesc(cond)}</div>`;
-    }
+    async function getVelibData() {
+      try {
+        const [statusRes, infoRes] = await Promise.all([
+          fetch("https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json"),
+          fetch("https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json")
+        ]);
+        const statusData = await statusRes.json();
+        const infoData = await infoRes.json();
 
-    function getWeatherDesc(code) {
-      if (code < 3) return "Ensoleillé";
-      if (code < 60) return "Partiellement nuageux";
-      return "Pluvieux";
+        const stations = infoData.data.stations.filter(station =>
+          station.name.includes("VINCENNES") || station.name.includes("ÉCOLE DU BREUIL")
+        );
+
+        const html = stations.map(station => {
+          const status = statusData.data.stations.find(s => s.station_id == station.station_id);
+          if (!status) return null;
+
+          const total = status.num_bikes_available;
+          const elect = status.num_bikes_available_types?.[0]?.ebike || 0;
+          const mech = status.num_bikes_available_types?.[0]?.mechanical || 0;
+          const docks = status.num_docks_available;
+
+          return `<strong>${station.name}</strong> : ${total} vélos (🔌 ${elect} / 🚲 ${mech}) – ${docks} bornettes libres`;
+        }).filter(Boolean).join("<br>");
+
+        document.getElementById("velib-data").innerHTML = html || "Pas d'information disponible pour les stations proches.";
+      } catch (e) {
+        document.getElementById("velib-data").innerText = "Erreur de chargement des données Vélib.";
+      }
     }
 
     function updateTimestamp() {
       const now = new Date();
-      const ts = document.getElementById("timestamp");
-      ts.textContent = `Dernière mise à jour : ${now.toLocaleDateString("fr-FR", {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-      })} – ${now.toLocaleTimeString("fr-FR")}`;
+      document.getElementById("last-update").innerText =
+        "Dernière mise à jour : " + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    async function updateAll() {
-      await showWeather();
-      await showBus();
-      await showRER();
-      await showVelib();
+    async function refreshAll() {
+      await Promise.all([getRatpData(), getVelibData()]);
       updateTimestamp();
     }
 
-    updateAll();
-    setInterval(updateAll, 60000);
+    refreshAll();
+    setInterval(refreshAll, 60000);
   </script>
 </body>
 </html>
