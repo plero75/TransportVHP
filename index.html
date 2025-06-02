@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tableau Transports - Vincennes (Debug)</title>
+  <title>Tableau Transports - Vincennes</title>
   <style>
     body {
       background-color: #000;
@@ -43,7 +42,7 @@
   </style>
 </head>
 <body>
-  <h1>⏱ Transports en Temps Réel – Hippodrome de Vincennes (Debug)</h1>
+  <h1>⏱ Transports en Temps Réel – Hippodrome de Vincennes</h1>
   <div class="section" id="weather"></div>
   <div class="section" id="bus"></div>
   <div class="section" id="rer"></div>
@@ -55,20 +54,20 @@
       { name: "Hippodrome de Vincennes", ref: "STIF:StopPoint:Q:43972:" },
       { name: "École du Breuil", ref: "STIF:StopPoint:Q:43974:" }
     ];
+
     const rerStops = [
       { name: "Joinville-le-Pont", ref: "STIF:StopPoint:Q:43851:" }
     ];
+
     const velibStations = [
       { name: "Hippodrome de Vincennes", station_id: "12029" }
     ];
 
     async function fetchDepartures(ref) {
-      const res = await fetch(`https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${ref}`);
-      if (!res.ok) return [];
+      const res = await fetch(`https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=${encodeURIComponent(ref)}`);
+      if (!res.ok) return null;
       const data = await res.json();
-      const visits = data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
-      console.log(`DEBUG - Réponse PRIM pour ${ref}:`, visits);
-      return visits;
+      return data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
     }
 
     function groupDepartures(visits) {
@@ -93,13 +92,11 @@
       container.innerHTML = "";
       for (const stop of stops) {
         const visits = await fetchDepartures(stop.ref);
+        if (!visits) continue;
         const grouped = groupDepartures(visits);
         const section = document.createElement("div");
         section.className = "line";
         section.innerHTML = `<h2>🚌 ${stop.name}</h2>`;
-        if (Object.keys(grouped).length === 0) {
-          section.innerHTML += `<div class="departure">Aucune donnée disponible</div>`;
-        }
         for (const dir in grouped) {
           section.innerHTML += `<div><strong>${dir}</strong></div>`;
           grouped[dir].forEach(dep => {
@@ -116,13 +113,11 @@
       container.innerHTML = "";
       for (const stop of rerStops) {
         const visits = await fetchDepartures(stop.ref);
+        if (!visits) continue;
         const grouped = groupDepartures(visits);
         const section = document.createElement("div");
         section.className = "line";
         section.innerHTML = `<h2>🚆 RER A – ${stop.name}</h2>`;
-        if (Object.keys(grouped).length === 0) {
-          section.innerHTML += `<div class="departure">Aucune donnée disponible</div>`;
-        }
         for (const dir in grouped) {
           section.innerHTML += `<div><strong>${dir}</strong></div>`;
           grouped[dir].forEach(dep => {
@@ -137,17 +132,22 @@
     async function showVelib() {
       const el = document.getElementById("velib");
       el.innerHTML = "<h2>🚲 Vélib'</h2>";
-      const infoRes = await fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_information");
-      const statusRes = await fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_status");
-      if (!infoRes.ok || !statusRes.ok) return;
-      const info = await infoRes.json();
-      const stat = await statusRes.json();
-      velibStations.forEach(({ station_id, name }) => {
-        const target = info.data.stations.find(s => s.station_id == station_id);
-        const avail = stat.data.stations.find(s => s.station_id == station_id);
-        if (!target || !avail) return;
-        el.innerHTML += `<div class="departure">${name} : ${avail.num_bikes_available} vélos / ${avail.num_docks_available} bornes</div>`;
-      });
+      try {
+        const [infoRes, statRes] = await Promise.all([
+          fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_information"),
+          fetch("https://velib-proxy.hippodrome-proxy42.workers.dev/?target=station_status")
+        ]);
+        const info = await infoRes.json();
+        const stat = await statRes.json();
+        velibStations.forEach(({ station_id, name }) => {
+          const target = info.data.stations.find(s => s.station_id === station_id);
+          const avail = stat.data.stations.find(s => s.station_id === station_id);
+          if (!target || !avail) return;
+          el.innerHTML += `<div class="departure">${name} : ${avail.num_bikes_available} vélos / ${avail.num_docks_available} bornes</div>`;
+        });
+      } catch (err) {
+        el.innerHTML += `<div class="departure">Erreur de chargement Vélib'</div>`;
+      }
     }
 
     async function showWeather() {
@@ -172,7 +172,9 @@
     function updateTimestamp() {
       const now = new Date();
       const ts = document.getElementById("timestamp");
-      ts.textContent = `Dernière mise à jour : ${now.toLocaleDateString("fr-FR", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} – ${now.toLocaleTimeString("fr-FR")}`;
+      ts.textContent = `Dernière mise à jour : ${now.toLocaleDateString("fr-FR", {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      })} – ${now.toLocaleTimeString("fr-FR")}`;
     }
 
     async function updateAll() {
