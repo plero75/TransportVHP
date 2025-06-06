@@ -9,7 +9,7 @@ const proxy = "https://transportvhp.hippodrome-proxy42.workers.dev";
 
 async function fetchDepartures(stopId, label) {
   try {
-    const res = await fetch(`${proxy}/stop-areas/${stopId}/departures?duration=60`);
+    const res = await fetch(`${proxy}/?ref=${stopId}`);
     const data = await res.json();
 
     const lines = data.departures.map(dep => 
