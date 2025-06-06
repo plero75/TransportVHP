@@ -5,7 +5,7 @@ const STOPS = {
   bus201: "STIF:StopPoint:Q:463644:"
 };
 
-const proxy = "https://ratp-proxy.hippodrome-proxy42.workers.dev";
+const proxy = "https://transportvhp.hippodrome-proxy42.workers.dev";
 
 async function fetchDepartures(stopId, label) {
   try {
