@@ -16,3 +16,12 @@ h1 {
   width: 100%;
   max-width: 900px;
 }
+.line {
+  border-bottom: 1px solid #444;
+  padding: 10px 0;
+}
+.timestamp {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-top: 20px;
+}

@@ -1,26 +1,36 @@
 
-const proxyURL = 'https://ratp-proxy.hippodrome-proxy42.workers.dev/?ref=';
+const STOPS = {
+  rer: "STIF:StopPoint:Q:43135:",
+  bus77: "STIF:StopPoint:Q:463641:",
+  bus201: "STIF:StopPoint:Q:463644:"
+};
 
-const rerID = 'STIF:StopPoint:Q:43135:';
-const busIDs = ['STIF:StopPoint:Q:463641:', 'STIF:StopPoint:Q:463644:'];
-const velibStations = [12128, 12163];
+const proxy = "https://ratp-proxy.hippodrome-proxy42.workers.dev";
 
-async function fetchData(ref) {
-  const response = await fetch(proxyURL + encodeURIComponent(ref));
-  return response.json();
-}
-
-async function refreshAll() {
+async function fetchDepartures(stopId, label) {
   try {
-    const rer = await fetchData(rerID);
-    document.getElementById('rer-data').innerText = JSON.stringify(rer, null, 2);
-    const buses = await Promise.all(busIDs.map(id => fetchData(id)));
-    document.getElementById('bus-data').innerText = JSON.stringify(buses, null, 2);
-    const velib = await Promise.all(velibStations.map(id => fetch(`https://velib-proxy.hippodrome-proxy42.workers.dev/?station=${id}`).then(r => r.json())));
-    document.getElementById('velib-data').innerText = JSON.stringify(velib, null, 2);
+    const res = await fetch(`${proxy}/stop-areas/${stopId}/departures?duration=60`);
+    const data = await res.json();
+
+    const lines = data.departures.map(dep => 
+      `<div class="line">
+         <strong>${dep.display_informations.label}</strong> → ${dep.display_informations.direction} à ${dep.stop_date_time.departure_time.slice(0, 5)}
+       </div>`
+    ).join("");
+
+    document.getElementById(label).innerHTML = `<h2>${label.toUpperCase()}</h2>${lines}`;
   } catch (e) {
-    console.error("Erreur API:", e);
+    console.error("Erreur récupération", e);
   }
 }
+
+function refreshAll() {
+  fetchDepartures(STOPS.rer, "rer");
+  fetchDepartures(STOPS.bus77, "bus");
+  fetchDepartures(STOPS.bus201, "bus");
+
+  document.getElementById("timestamp").textContent = `Mis à jour à ${new Date().toLocaleTimeString()}`;
+}
+
 refreshAll();
 setInterval(refreshAll, 60000);
