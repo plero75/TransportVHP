@@ -1,17 +1,31 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Transport VHP</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Horaires en temps réel – Vincennes</h1>
-  <div class="section" id="rer"><h2>🚆 RER A – Joinville-le-Pont</h2><div class="data" id="rer-data"></div></div>
-  <div class="section" id="bus77"><h2>🚌 Bus 77 – Hippodrome de Vincennes</h2><div class="data" id="bus77-data"></div></div>
-  <div class="section" id="bus201"><h2>🚌 Bus 201 – École du Breuil</h2><div class="data" id="bus201-data"></div></div>
-  <div class="section" id="velib"><h2>🚲 Vélib’</h2><div class="data" id="velib-data"></div></div>
+  <h1>🚉 Transports vers Hippodrome de Vincennes</h1>
+  <div id="rer" class="section">
+    <h2>RER A – Joinville-le-Pont</h2>
+    <div id="rer-data"></div>
+  </div>
+  <div id="bus77" class="section">
+    <h2>Bus 77 – Hippodrome de Vincennes</h2>
+    <div id="bus77-data"></div>
+  </div>
+  <div id="bus201" class="section">
+    <h2>Bus 201 – École du Breuil</h2>
+    <div id="bus201-data"></div>
+  </div>
+  <div id="velib" class="section">
+    <h2>🚲 Vélib’ – Stations à proximité</h2>
+    <div id="velib-data"></div>
+  </div>
+  <div class="timestamp" id="timestamp"></div>
   <script src="script.js"></script>
 </body>
 </html>

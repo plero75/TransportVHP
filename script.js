@@ -1,63 +1,59 @@
 
 const proxy = "https://transportvhp.hippodrome-proxy42.workers.dev/?ref=";
-const refs = {
+const points = {
   rer: "STIF:StopPoint:Q:43135:",
   bus77: "STIF:StopPoint:Q:463641:",
   bus201: "STIF:StopPoint:Q:463644:"
 };
-const velibStations = ["12128", "12163"];
+const velibStations = ["12128", "12163"]; // exemple
 
-async function fetchPrim(ref) {
-  const url = proxy + encodeURIComponent(ref);
-  try {
-    const response = await fetch(url);
-    const json = await response.json();
-    return json.Siri?.ServiceDelivery?.StopMonitoringDelivery[0]?.MonitoredStopVisit || [];
-  } catch (err) {
-    console.error("Erreur PRIM:", err);
-    return [];
+async function fetchTransports() {
+  for (const [id, ref] of Object.entries(points)) {
+    try {
+      const response = await fetch(proxy + encodeURIComponent(ref));
+      const data = await response.json();
+      displayDepartures(data, id);
+    } catch (e) {
+      document.getElementById(id + "-data").innerHTML = "<p>Erreur chargement données</p>";
+    }
   }
+
+  fetchVelib();
+  document.getElementById("timestamp").textContent = "Dernière mise à jour : " + new Date().toLocaleTimeString();
+  setTimeout(fetchTransports, 60000);
 }
 
-function displayPrimData(data, elementId) {
-  const container = document.getElementById(elementId);
+function displayDepartures(data, id) {
+  const container = document.getElementById(id + "-data");
   container.innerHTML = "";
-  if (!data.length) {
-    container.textContent = "Aucune donnée disponible.";
+  const journeys = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
+  if (journeys.length === 0) {
+    container.innerHTML = "<p>Aucune donnée disponible.</p>";
     return;
   }
-  data.slice(0, 5).forEach(item => {
-    const aimed = item.MonitoredVehicleJourney.MonitoredCall.AimedDepartureTime;
-    const dest = item.MonitoredVehicleJourney.DestinationName;
-    const div = document.createElement("div");
-    div.textContent = `→ ${dest} à ${new Date(aimed).toLocaleTimeString("fr-FR")}`;
-    container.appendChild(div);
-  });
+  for (const visit of journeys) {
+    const line = visit.MonitoredVehicleJourney;
+    const time = line.MonitoredCall?.ExpectedArrivalTime || "n/a";
+    const direction = line.DirectionName || "Direction inconnue";
+    container.innerHTML += `<div class="line"><strong>${line.LineRef}</strong> – ${direction}<br>${new Date(time).toLocaleTimeString()}</div>`;
+  }
 }
 
-async function fetchVelib(stationCode) {
-  const url = `https://velib-proxy.hippodrome-proxy42.workers.dev/station_status.json`;
-  const infoUrl = `https://velib-proxy.hippodrome-proxy42.workers.dev/station_information.json`;
-  const [status, info] = await Promise.all([fetch(url).then(r => r.json()), fetch(infoUrl).then(r => r.json())]);
-  const statusMap = {};
-  status.data.stations.forEach(s => statusMap[s.station_id] = s);
+async function fetchVelib() {
   const container = document.getElementById("velib-data");
   container.innerHTML = "";
-  info.data.stations
-    .filter(s => velibStations.includes(s.station_code))
-    .forEach(s => {
-      const stat = statusMap[s.station_id];
-      const div = document.createElement("div");
-      div.textContent = `${s.name} : ${stat.num_bikes_available} vélos / ${stat.num_docks_available} bornes`;
-      container.appendChild(div);
-    });
+  for (const id of velibStations) {
+    try {
+      const res = await fetch(`https://velib-proxy.hippodrome-proxy42.workers.dev/station_status.json`);
+      const status = await res.json();
+      const station = status.data.stations.find(s => s.station_id === id);
+      if (station) {
+        container.innerHTML += `<div class="line">Station ${id} – Vélos : ${station.num_bikes_available}, Docks : ${station.num_docks_available}</div>`;
+      }
+    } catch (e) {
+      container.innerHTML += `<div class="line">Erreur station ${id}</div>`;
+    }
+  }
 }
 
-async function refreshAll() {
-  displayPrimData(await fetchPrim(refs.rer), "rer-data");
-  displayPrimData(await fetchPrim(refs.bus77), "bus77-data");
-  displayPrimData(await fetchPrim(refs.bus201), "bus201-data");
-  fetchVelib();
-}
-refreshAll();
-setInterval(refreshAll, 60000);
+fetchTransports();
