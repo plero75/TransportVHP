@@ -1,0 +1,4 @@
+route_id,agency_id,route_short_name,route_long_name,route_type
+RER_A,IDFM,RER A,RER A,2
+BUS_77,IDFM,77,Bus 77,3
+BUS_201,IDFM,201,Bus 201,3
