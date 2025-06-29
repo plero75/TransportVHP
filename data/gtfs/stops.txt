@@ -1,0 +1,4 @@
+stop_id,stop_name
+STIF:StopPoint:Q:43135:,Joinville-le-Pont
+STIF:StopPoint:Q:463641:,Hippodrome de Vincennes
+STIF:StopPoint:Q:463644:,Ecole du Breuil

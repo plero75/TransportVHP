@@ -1,0 +1,4 @@
+trip_id,arrival_time,departure_time,stop_id,stop_sequence
+RERA1,07:30:00,07:30:00,STIF:StopPoint:Q:43135:,1
+TRIP77A,07:35:00,07:35:00,STIF:StopPoint:Q:463641:,1
+TRIP201A,07:40:00,07:40:00,STIF:StopPoint:Q:463644:,1
