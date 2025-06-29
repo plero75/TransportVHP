@@ -1,0 +1,4 @@
+stop_id,stop_name,stop_lat,stop_lon
+stop_rer,Joinville-le-Pont,48.821,2.457
+stop_bus77,Hippodrome de Vincennes,48.836,2.435
+stop_bus201,Ecole du Breuil,48.833,2.447
