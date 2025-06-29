@@ -64,7 +64,7 @@ class GTFS:
         return upcoming[:limit]
 
 def fetch_real_time(stop_ref: str):
-    url = f"https://transportvhp.hippodrome-proxy42.workers.dev/?ref={stop_ref}"
+    url = f"https://ratp-proxy.hippodrome-proxy42.workers.dev/?url={stop_ref}"
     resp = requests.get(url, timeout=5)
     resp.raise_for_status()
     return resp.json()
