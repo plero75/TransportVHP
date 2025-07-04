@@ -1,3 +1,4 @@
+
 export const CONFIG = {
   proxy: "https://ratp-proxy.hippodrome-proxy42.workers.dev/?url=",
   stops: {
