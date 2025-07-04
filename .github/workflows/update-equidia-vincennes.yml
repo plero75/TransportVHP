@@ -1,5 +1,6 @@
 
-name: Update Races (Equidia Only Vincennes)
+- name: Install deps
+  run: npm install
 
 on:
   schedule:
@@ -16,8 +17,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install deps
-        run: npm ci
+- name: Install deps
+  run: npm install
+
       - name: Scrape Equidia Vincennes
         run: npm run scrape-equidia
       - name: Commit changes
