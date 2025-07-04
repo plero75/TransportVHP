@@ -1,0 +1,29 @@
+
+name: Update Races (Equidia Only Vincennes)
+
+on:
+  schedule:
+    - cron: '0 5 * * 1' # Chaque lundi à 5h UTC
+  workflow_dispatch:
+
+jobs:
+  scrape-races:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        run: npm ci
+      - name: Scrape Equidia Vincennes
+        run: npm run scrape-equidia
+      - name: Commit changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add static/races.json
+          git commit -m "maj courses Equidia Vincennes [auto]" || echo "Pas de modif"
+          git push
