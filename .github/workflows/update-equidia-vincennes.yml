@@ -1,6 +1,4 @@
-
-- name: Install deps
-  run: npm install
+name: Update Races (Equidia Only Vincennes)
 
 on:
   schedule:
