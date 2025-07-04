@@ -1,0 +1,22 @@
+
+{
+  "name": "vhp5",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Dashboard mobilité hippodrome Vincennes (RER, Bus, Courses)",
+  "author": "vhp5 community",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node scripts/main.js",
+    "update-gtfs": "node scripts/main.js",
+    "fetch-programme": "node scripts/fetch-programme.js",
+    "scrape-equidia": "node scripts/scrape-equidia.js",
+    "scrape-vincennes": "node scripts/scrape-vincennes.js"
+  },
+  "dependencies": {
+    "csv-parse": "^5.5.4",
+    "unzipper": "^0.10.11",
+    "node-fetch": "^2.6.9",
+    "jsdom": "^22.1.0"
+  }
+}
