@@ -1,194 +1,26 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Tableau Arrêts - RATP VHP</title>
+  <meta charset="UTF-8" />
+  <title>Affichage Temps Réel Transport</title>
   <style>
-    body { background: #f4f6fb; font-family: 'Segoe UI', Arial, sans-serif; }
-    .arret-block { max-width: 900px; margin: 30px auto 40px; background: #fff; border-radius: 16px; box-shadow: 0 2px 14px #0001; border: 2px solid #1b2494; }
-    .arret-title { background: #1b2494; color: #fff; font-size: 1.7em; font-weight: bold; padding: 14px 30px 9px 30px; border-radius: 16px 16px 0 0; }
-    .ligne-block { padding: 18px 32px 16px 32px; border-bottom: 1px solid #c5c8d1; }
-    .ligne-header { display: flex; align-items: center; gap: 18px; }
-    .badge { font-size: 1.2em; border-radius: 8px; font-weight: bold; padding: 5px 16px; margin-right: 12px; color: #fff;}
-    .bus-77 { background: #1576d1; }
-    .bus-201 { background: #8f6c2a; }
-    .rer-a { background: #d12028; }
-    .direction { font-size: 1.15em; font-weight: bold; color: #1b2494;}
-    .prem-dern { margin-left: auto; font-size: 1.05em;}
-    .passages-row { display: flex; gap: 10px; margin: 11px 0; flex-wrap: wrap;}
-    .passage { background: #181C24; color: #ffe56c; font-size: 1.14em; border-radius: 7px; padding: 7px 15px 7px 13px; font-family: monospace; min-width: 42px; text-align: center;}
-    .retard { color: #ff2e1e; margin-left: 8px; font-size: 0.96em;}
-    .supprime { background: #d12028; color: #fff; }
-    .gares-defile { overflow-x: auto; white-space: nowrap; padding: 7px 0 2px 0;}
-    .gare-item { display: inline-block; margin-right: 18px; color: #1b2494; font-size: 1em;}
-    .traffic-alert { margin-top: 6px; color: #d12028; background: #fff3c1; border-radius: 8px; padding: 8px 15px; font-weight: 500; border: 1px solid #ffe1a1;}
-    @media (max-width: 900px) { .arret-block {max-width:99vw; margin:13px 1vw;} .arret-title{font-size:1.09em; padding:8px 8vw 7px 6vw;} .ligne-block{padding:10px 6vw 8px 6vw;} }
+    body { font-family: Arial, sans-serif; background: #f6f7fb; margin:0; }
+    .arret-block { background: #181c92; color: #fff; margin: 20px auto; border-radius: 12px; max-width: 900px; padding: 24px 32px 24px 32px; box-shadow: 0 8px 36px #181c9233;}
+    .arret-title { font-size: 2.5em; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px;}
+    .ligne-title { font-size: 2em; color: #ffdc47; margin-bottom: 6px;}
+    .horaire-ligne {margin-bottom: 28px;}
+    .dest-block { margin: 14px 0 16px 0; background: #fff; color:#181c92; border-radius: 8px; padding: 16px; }
+    .dest-name { font-weight: bold; font-size: 1.4em;}
+    .passages { display: flex; gap: 16px; margin: 10px 0;}
+    .passage { background: #181c92; color: #ffdc47; font-size: 2em; font-weight: bold; border-radius: 8px; padding: 12px 26px; min-width: 70px; display: flex; align-items: center; justify-content: center; }
+    .marquee { overflow: hidden; white-space: nowrap; margin-top: 10px; }
+    .marquee span { display: inline-block; padding-left: 100%; animation: marquee 12s linear infinite; }
+    @keyframes marquee { 100% { transform: translate(-100%, 0); } }
+    .service-info { margin-bottom: 10px; color: #bde5ff; font-size: 1em; }
   </style>
 </head>
 <body>
-<div id="main"></div>
-<script>
-const HORAIRES_URL = './static/horaires_export.json';
-// Ton proxy Cloudflare PRIM :
-const PROXY_PRIM = 'https://ratp-proxy.hippodrome-proxy42.workers.dev/marketplace';
-
-// Mapping MonitoringRef et LineRef par arrêt/ligne (à adapter si changement d'ID)
-const MONITORING_REF = {
-  "IDFM:70640": "STIF:StopArea:SP:43135:",       // Joinville-le-Pont
-  "IDFM:463645": "STIF:StopArea:SP:463644:",     // École du Breuil
-  "IDFM:463642": "STIF:StopArea:SP:463641:"      // Hippodrome de Vincennes
-};
-// LineRef API PRIM
-const LINEREF = {
-  "IDFM:C01742": "STIF:Line::C01742:", // RER A
-  "IDFM:C02251": "STIF:Line::C02251:"  // 77, 201, etc
-};
-
-// Affichage passage
-function renderPassage(p) {
-  if (p.supprime) return `<span class="passage supprime">Supprimé</span>`;
-  let ret = `<span class="passage">${p.heure}${p.restant !== undefined ? " <span style='font-size:0.82em'>(${p.restant}mn)</span>" : ""}</span>`;
-  if (p.retard) ret += `<span class="retard">+${p.retard}mn</span>`;
-  return ret;
-}
-function getBadgeClass(name) {
-  if (/77/.test(name)) return 'bus-77';
-  if (/201/.test(name)) return 'bus-201';
-  if (/RER ?A?/i.test(name)) return 'rer-a';
-  return '';
-}
-
-// Récupère les 4 prochains passages via API PRIM (par arrêt, ligne, sens)
-async function fetchProchainsPassages(stopId, lineId, direction) {
-  const monRef = MONITORING_REF[stopId];
-  if (!monRef) return [];
-  let url = `${PROXY_PRIM}/stop-monitoring?MonitoringRef=${encodeURIComponent(monRef)}`;
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
-    // Filtres pour la ligne & sens demandés (à affiner selon API)
-    let allPassages = [];
-    if (data.Siri && data.Siri.ServiceDelivery && data.Siri.ServiceDelivery.StopMonitoringDelivery) {
-      for (const del of data.Siri.ServiceDelivery.StopMonitoringDelivery) {
-        if (del.MonitoredStopVisit) {
-          allPassages = allPassages.concat(del.MonitoredStopVisit);
-        }
-      }
-    }
-    // Regroupe par direction
-    const result = [];
-    for (const visit of allPassages) {
-      const line = visit.MonitoredVehicleJourney?.LineRef || "";
-      const aimed = visit.MonitoredVehicleJourney?.DestinationName?.[0] || "";
-      const expected = visit.MonitoredVehicleJourney?.MonitoredCall?.ExpectedArrivalTime || "";
-      const aimedTime = visit.MonitoredVehicleJourney?.MonitoredCall?.AimedArrivalTime || "";
-      const status = visit.MonitoringStatus || "";
-      if (
-        line.includes(lineId.replace("IDFM:", "")) &&
-        aimed.toLowerCase().includes(direction.toLowerCase().split(" ")[0])
-      ) {
-        // Format heure + temps restant
-        let h = (expected || aimedTime).substr(11,5); // "2025-07-08T08:21:00+02:00" → "08:21"
-        let restant = null;
-        try {
-          let dt = new Date(expected || aimedTime);
-          let now = new Date();
-          restant = Math.round((dt-now)/60000);
-          if (restant<0) continue;
-        } catch(e){}
-        let retard = null;
-        if (expected && aimedTime && expected !== aimedTime) {
-          const dt1 = new Date(aimedTime);
-          const dt2 = new Date(expected);
-          retard = Math.round((dt2-dt1)/60000);
-        }
-        let supprime = status === "deleted";
-        result.push({heure: h, restant, retard, supprime});
-      }
-      if (result.length >= 4) break;
-    }
-    return result.slice(0,4);
-  } catch(e) { return []; }
-}
-// Récupère la bannière trafic pour la ligne (via API PRIM general-message)
-async function fetchTraffic(stopId, lineId, direction) {
-  const lineref = LINEREF[lineId];
-  if (!lineref) return null;
-  let url = `${PROXY_PRIM}/general-message?LineRef=${encodeURIComponent(lineref)}`;
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.Siri?.ServiceDelivery?.GeneralMessageDelivery) {
-      for (const msg of data.Siri.ServiceDelivery.GeneralMessageDelivery) {
-        if (msg.InfoMessage && msg.InfoMessage.length) {
-          return msg.InfoMessage.map(im =>
-            im.Message?.[0]?.MessageText || ""
-          ).filter(Boolean).join(" / ");
-        }
-      }
-    }
-    return null;
-  } catch(e) { return null; }
-}
-async function renderTable() {
-  const horaires = await fetch(HORAIRES_URL).then(r=>r.json());
-  const main = document.getElementById('main');
-  main.innerHTML = '';
-  for (const stopId in horaires) {
-    const stop = horaires[stopId];
-    let html = `<div class="arret-block">
-      <div class="arret-title">${stop.name}</div>`;
-    for (const lineId in stop.lines) {
-      const line = stop.lines[lineId];
-      for (const dir in line.directions) {
-        const dirData = line.directions[dir];
-        const badgeClass = getBadgeClass(line.name);
-        html += `<div class="ligne-block">
-          <div class="ligne-header">
-            <span class="badge ${badgeClass}">${line.name.replace(/\D/g,'') || line.name}</span>
-            <span class="direction">Vers ${dir}</span>
-            <span class="prem-dern">Premier : <b>${line.premier}</b> — Dernier : <b>${line.dernier}</b></span>
-          </div>
-          <div class="passages-row" id="passages-${stopId}-${lineId}-${btoa(dir).replace(/=/g,'')}">
-            <span>Chargement…</span>
-          </div>
-          <div class="gares-defile">
-            ${dirData.stops.map(g=>`<span class="gare-item">${g}</span>`).join('')}
-          </div>
-          <div class="traffic-alert" id="traffic-${stopId}-${lineId}-${btoa(dir).replace(/=/g,'')}" style="display:none"></div>
-        </div>`;
-      }
-    }
-    html += `</div>`;
-    main.innerHTML += html;
-  }
-  // Pour chaque direction, passages & trafic
-  for (const stopId in horaires) {
-    const stop = horaires[stopId];
-    for (const lineId in stop.lines) {
-      const line = stop.lines[lineId];
-      for (const dir in line.directions) {
-        const dirKey = `${stopId}-${lineId}-${btoa(dir).replace(/=/g,'')}`;
-        fetchProchainsPassages(stopId, lineId, dir).then(passages => {
-          const cont = document.getElementById("passages-" + dirKey);
-          if (cont) {
-            cont.innerHTML = passages && passages.length
-              ? passages.map(renderPassage).join("")
-              : '<span class="info-indispo">Information indisponible</span>';
-          }
-        });
-        fetchTraffic(stopId, lineId, dir).then(msg => {
-          const elt = document.getElementById("traffic-" + dirKey);
-          if (elt && msg) {
-            elt.style.display = '';
-            elt.textContent = "⚠️ " + msg;
-          }
-        });
-      }
-    }
-  }
-}
-renderTable();
-</script>
+  <div id="app"></div>
+  <script src="main.js"></script>
 </body>
 </html>
