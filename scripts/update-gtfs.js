@@ -12,13 +12,10 @@ TARGETS = [
     {"nom": "Hippodrome de Vincennes", "parent_station": "IDFM:463642", "route_id": "IDFM:C02251", "ligne": "77"},
     {"nom": "École du Breuil", "parent_station": "IDFM:463645", "route_id": "IDFM:C01219", "ligne": "201"},
     {"nom": "École du Breuil", "parent_station": "IDFM:463645", "route_id": "IDFM:C02251", "ligne": "77"},
-    {"nom": "Joinville-le-Pont", "stop_name": "Joinville-le-Pont", "route_id": "IDFM:C01742", "ligne": "RER A"},
+    {"nom": "Joinville-le-Pont", "parent_station": "IDFM:70640", "route_id": "STIF:Line::C01742:", "ligne": "RER A"},
 ]
 
-today = datetime.now().date()
-days = [today]
-
-print("Téléchargement des données GTFS…")
+print("\u2B07\ufe0f Téléchargement du GTFS...")
 resp = requests.get(GTFS_URL)
 z = zipfile.ZipFile(BytesIO(resp.content))
 
@@ -29,91 +26,79 @@ calendar = pd.read_csv(z.open("calendar.txt"))
 calendar_dates = pd.read_csv(z.open("calendar_dates.txt")) if "calendar_dates.txt" in z.namelist() else pd.DataFrame()
 routes = pd.read_csv(z.open("routes.txt"))
 
-resultats = {
-    "rer": {"horaires": [], "gares_par_destination": {}, "premier_dernier": {}},
-    "bus77": {"horaires": [], "gares_par_destination": {}, "premier_dernier": {}},
-    "bus201": {"horaires": [], "gares_par_destination": {}, "premier_dernier": {}},
+export = {
+    "rer": {"horaires": [], "gares_par_destination": {}, "premiers_derniers": {}},
+    "bus77": {"horaires": [], "gares_par_destination": collections.OrderedDict(), "premiers_derniers": {}},
+    "bus201": {"horaires": [], "gares_par_destination": collections.OrderedDict(), "premiers_derniers": {}},
     "lastFetch": int(datetime.now().timestamp())
 }
 
+aujourd_hui = datetime.now().date()
+dow = aujourd_hui.weekday()
+
+active_services = set()
+for _, row in calendar.iterrows():
+    start = datetime.strptime(str(row['start_date']), "%Y%m%d").date()
+    end = datetime.strptime(str(row['end_date']), "%Y%m%d").date()
+    if start <= aujourd_hui <= end:
+        if (dow == 0 and row['monday']) or (dow == 1 and row['tuesday']) or \
+           (dow == 2 and row['wednesday']) or (dow == 3 and row['thursday']) or \
+           (dow == 4 and row['friday']) or (dow == 5 and row['saturday']) or \
+           (dow == 6 and row['sunday']):
+            active_services.add(row['service_id'])
+
+if not calendar_dates.empty:
+    for _, row in calendar_dates.iterrows():
+        if int(row['date']) == int(aujourd_hui.strftime("%Y%m%d")):
+            if row['exception_type'] == 1:
+                active_services.add(row['service_id'])
+            elif row['exception_type'] == 2 and row['service_id'] in active_services:
+                active_services.remove(row['service_id'])
+
 for target in TARGETS:
-    ligne = target["ligne"]
-    route_id = target["route_id"]
-    trips_line = trips[trips['route_id'] == route_id]
+    stop_ids = stops[stops['parent_station'] == target['parent_station']]['stop_id'].tolist()
+    if target['parent_station'] in stops['stop_id'].values:
+        stop_ids.append(target['parent_station'])
 
-    # Stop IDs
-    if ligne == "RER A":
-        stop_ids = stops[stops['stop_name'].str.contains(target["stop_name"], case=False)]['stop_id'].tolist()
-    else:
-        parent_station = target["parent_station"]
-        stop_ids = stops[stops['parent_station'] == parent_station]['stop_id'].tolist()
-        if parent_station in stops['stop_id'].values:
-            stop_ids.append(parent_station)
+    route_trips = trips[(trips['route_id'] == target['route_id']) & (trips['service_id'].isin(active_services))]
+    for trip_id in route_trips['trip_id'].unique():
+        trip_info = route_trips[route_trips['trip_id'] == trip_id].iloc[0]
+        headsign = trip_info['trip_headsign']
 
-    horaires_ligne = []
-    destinations_seen = set()
+        stops_this_trip = stop_times[stop_times['trip_id'] == trip_id].sort_values('stop_sequence')
+        stop_seq_ids = stops_this_trip['stop_id'].tolist()
+        horaires = stops_this_trip[stops_this_trip['stop_id'].isin(stop_ids)]
 
-    for day in days:
-        dow = day.weekday()
-        active_service_ids = []
+        for _, h in horaires.iterrows():
+            heure = h['departure_time'][:5]
+            gares_restantes = stops[stops['stop_id'].isin(
+                stops_this_trip[stops_this_trip['stop_sequence'] > h['stop_sequence']]['stop_id']
+            )]['stop_name'].tolist()
 
-        for _, row in calendar.iterrows():
-            start = datetime.strptime(str(row['start_date']), "%Y%m%d").date()
-            end = datetime.strptime(str(row['end_date']), "%Y%m%d").date()
-            if not (start <= day <= end): continue
-            if dow < 5 and row['monday']: active_service_ids.append(row['service_id'])
-            if dow == 5 and row['saturday']: active_service_ids.append(row['service_id'])
-            if dow == 6 and row['sunday']: active_service_ids.append(row['service_id'])
+            if target['ligne'] == "RER A":
+                export['rer']['horaires'].append({"time": heure, "destination": headsign, "gares_restantes": gares_restantes})
+                if headsign not in export['rer']['gares_par_destination']:
+                    export['rer']['gares_par_destination'][headsign] = gares_restantes
+            else:
+                export[f"bus{target['ligne']}"]['horaires'].append({"time": heure, "destination": headsign})
+                if headsign not in export[f"bus{target['ligne']}"]['gares_par_destination']:
+                    export[f"bus{target['ligne']}"]['gares_par_destination'][headsign] = gares_restantes
 
-        if not calendar_dates.empty:
-            today_exceptions = calendar_dates[calendar_dates['date'] == int(day.strftime("%Y%m%d"))]
-            for _, ex in today_exceptions.iterrows():
-                if ex['exception_type'] == 1 and ex['service_id'] not in active_service_ids:
-                    active_service_ids.append(ex['service_id'])
-                if ex['exception_type'] == 2 and ex['service_id'] in active_service_ids:
-                    active_service_ids.remove(ex['service_id'])
+for section in ['rer', 'bus77', 'bus201']:
+    par_dest = collections.defaultdict(list)
+    for h in export[section]['horaires']:
+        par_dest[h['destination']].append(h['time'])
+    for dest, horaires in par_dest.items():
+        try:
+            horaires_sorted = sorted(horaires, key=lambda x: int(x.split(':')[0]) * 60 + int(x.split(':')[1]))
+            export[section]['premiers_derniers'][dest] = {
+                "premier": horaires_sorted[0],
+                "dernier": horaires_sorted[-1]
+            }
+        except:
+            continue
 
-        trips_today = trips_line[trips_line['service_id'].isin(active_service_ids)]
-
-        for _, trip in trips_today.iterrows():
-            trip_id = trip['trip_id']
-            dest = trip['trip_headsign'] if 'trip_headsign' in trip else "?"
-
-            stops_trip = stop_times[stop_times['trip_id'] == trip_id]
-            stops_filtered = stops_trip[stops_trip['stop_id'].isin(stop_ids)]
-            if stops_filtered.empty:
-                continue
-
-            for _, st in stops_filtered.iterrows():
-                time_str = st['departure_time'][:5]
-                horaires_ligne.append({"time": time_str, "destination": dest})
-
-            # Ajouter la séquence d’arrêts une seule fois par destination
-            if dest not in resultats[f"bus{ligne.lower()}" if ligne != "RER A" else "rer"]["gares_par_destination"]:
-                stop_names = stops[stops['stop_id'].isin(stops_trip['stop_id'])]['stop_name'].tolist()
-                resultats[f"bus{ligne.lower()}" if ligne != "RER A" else "rer"]["gares_par_destination"][dest] = stop_names
-
-    # Trier les horaires et enregistrer
-    horaires_ligne.sort(key=lambda x: x['time'])
-    resultats[f"bus{ligne.lower()}" if ligne != "RER A" else "rer"]["horaires"].extend(horaires_ligne)
-
-    # Calcul premier/dernier passage par destination
-    horaires_par_dest = collections.defaultdict(list)
-    for h in horaires_ligne:
-        horaires_par_dest[h["destination"]].append(h["time"])
-
-    premiers_derniers = {
-        dest: {
-            "premier": horaires[0],
-            "dernier": horaires[-1]
-        }
-        for dest, horaires in horaires_par_dest.items() if horaires
-    }
-
-    resultats[f"bus{ligne.lower()}" if ligne != "RER A" else "rer"]["premier_dernier"] = premiers_derniers
-
-# Export JSON
 with open("static/horaires_export.json", "w", encoding="utf-8") as f:
-    json.dump(resultats, f, indent=2, ensure_ascii=False)
+    json.dump(export, f, indent=2, ensure_ascii=False)
 
-print("✅ Données GTFS extraites avec succès dans static/horaires_export.json")
+print("\u2705 Export terminé dans static/horaires_export.json")
