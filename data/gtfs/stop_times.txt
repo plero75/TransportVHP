@@ -1,0 +1,4 @@
+trip_id,arrival_time,departure_time,stop_id,stop_sequence
+RER_A_trip1,10:00:00,10:00:00,stop_rer,1
+BUS77_trip1,10:15:00,10:15:00,stop_bus77,1
+BUS201_trip1,10:20:00,10:20:00,stop_bus201,1

@@ -1,0 +1,4 @@
+route_id,service_id,trip_id,trip_headsign
+RER_A,WD,RER_A_trip1,Paris
+BUS_77,WD,BUS77_trip1,Vincennes
+BUS_201,WD,BUS201_trip1,Ecole du Breuil
