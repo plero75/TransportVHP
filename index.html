@@ -1,79 +1,94 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <meta http-equiv="Cache-Control" content="public, max-age=3600, must-revalidate" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light dark" />
-  <title>Dashboard – Hippodrome de Vincennes</title>
-
-  <!-- Sécurité moderne -->
-  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self'; default-src 'self' https: data:;" />
-  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
-  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=()" />
-  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-
-  <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=20251004" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard IDFM – Vincennes / Joinville (Live)</title>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Header principal -->
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-title">Hippodrome de Vincennes</div>
-      <div class="brand-sub">Tableau de bord temps réel</div>
-    </div>
-    <div class="meta">
-      <div class="meta-row">
-        <span id="date">--</span>
-        <span id="clock">--:--</span>
-      </div>
-      <div class="meta-row">
-        <span id="weather-temp"></span>
-        <span id="weather-desc"></span>
-        <span id="saint" class="saint"></span>
-      </div>
-      <div class="meta-row muted" id="lastUpdate">Maj --:--</div>
+<div id="fit">
+  <header>
+    <div>Dashboard IDFM – Vincennes / Joinville</div>
+    <div class="header-right">
+      <div id="date"></div>
+      <div id="time" class="mono"></div>
+      <div class="weather" id="meteo"></div>
+      <div id="saint"></div>
     </div>
   </header>
+  <div class="sub" id="alertes-trafic"></div>
 
-  <!-- Header bis -->
-  <div id="traffic-banner" class="traffic-banner ok">Trafic normal</div>
+  <main>
+    <section class="ticker" id="ticker">
+      <span class="tag">Fil actu</span>
+      <div class="items" id="ticker-items">Chargement du flux France Info…</div>
+    </section>
 
-  <!-- Lignes -->
-  <section class="grid grid-3">
-    <article class="panel"><h2>Hippodrome de Vincennes – Bus 77</h2><div id="bus-hippodrome-body" class="board"></div></article>
-    <article class="panel"><h2>École du Breuil – Bus 77 & 201</h2><div id="bus-breuil-body" class="board"></div></article>
-    <article class="panel"><h2>Joinville-le-Pont – RER A</h2><div id="rer-body" class="board"></div></article>
-  </section>
+    <!-- RER A -->
+    <section class="panel" id="rerA">
+      <h2>🚆 Joinville – RER A</h2>
+      <div class="notice info" id="rer-a-info">Chargement…</div>
+      <div class="board" id="rer-a-passages"></div>
+    </section>
 
-  <section class="grid grid-2">
-    <article class="panel"><h2>Joinville-le-Pont – RER A (2 directions)</h2><div id="rer-col" class="board"></div></article>
-    <article class="panel"><h2>Joinville-le-Pont – Tous les bus</h2><div id="bus-joinville-body" class="board"></div></article>
-  </section>
+    <!-- Bus 77 -->
+    <section class="panel" id="bus77">
+      <h2>🚌 Bus 77 – Hippodrome de Vincennes</h2>
+      <div class="notice info" id="bus-77-info">Chargement…</div>
+      <div class="board" id="bus-77-passages"></div>
+    </section>
 
-  <section class="grid grid-1">
-    <article class="panel"><h2>Vélib’ – Vincennes & Breuil</h2><div id="velib-body" class="board"></div></article>
-  </section>
+    <!-- Bus 201 -->
+    <section class="panel" id="bus201">
+      <h2>🚌 Bus 201 – École du Breuil</h2>
+      <div class="notice info" id="bus-201-info">Chargement…</div>
+      <div class="board" id="bus-201-passages"></div>
+    </section>
 
-  <section class="grid grid-1">
-    <article class="panel"><h2>Trafic routier & perturbations locales</h2><div id="road-list" class="board"></div></article>
-  </section>
+    <!-- Tous bus Joinville -->
+    <section class="panel" id="joinville-bus" style="grid-column:span 3">
+      <h2>🚌 Tous les bus à Joinville-le-Pont</h2>
+      <div class="notice info" id="joinville-info">Chargement…</div>
+      <div class="board joinville-three-cols" id="joinville-passages"></div>
+    </section>
 
-  <section class="grid grid-1">
-    <article class="panel"><h2>Flash News – France Info</h2><div id="news-carousel" class="news-carousel"></div></article>
-  </section>
+    <!-- Vélib + Courses + Sytadin -->
+    <section class="aside-layout">
+      <section class="panel" id="velib">
+        <h2>🚲 Vélib’ – Disponibilités</h2>
+        <div class="board velib-wrap" id="velib-board"></div>
+      </section>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <section class="panel" id="courses-enghien">
+          <h2>🐎 Courses – Enghien</h2>
+          <div class="board tickets" id="courses-enghien-board"></div>
+        </section>
+        <section class="panel" id="courses-vincennes">
+          <h2>🐎 Courses – Vincennes</h2>
+          <div class="board tickets" id="courses-vincennes-board"></div>
+        </section>
+      </div>
+      <div class="aside">
+        <section class="panel sytadin-wrap">
+          <h2>🚗 Carte trafic – Sytadin</h2>
+          <iframe id="sytadin" class="sytadin-frame" title="Carte Sytadin"
+            src="https://www.sytadin.fr/frame/cartographie.jsp.html?largeur=596"
+            referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-popups" loading="lazy"></iframe>
+          <div class="sytadin-fallback">La carte ne s’affiche pas ? <a href="https://www.sytadin.fr/frame/cartographie.jsp.html?largeur=596" target="_blank">Ouvrir</a></div>
+        </section>
+      </div>
+    </section>
 
-  <section class="grid grid-2">
-    <article class="panel"><h2>Prochaines courses – Vincennes</h2><div id="courses-list" class="board"></div></article>
-    <article class="panel"><h2>Prochaines courses – Enghien</h2><div id="courses-enghien" class="board">À venir…</div></article>
-  </section>
+    <!-- Trafic routier -->
+    <section class="panel" id="trafic" style="grid-column:span 3">
+      <h2>🚦 Info trafic – Circulation</h2>
+      <div class="board" id="trafic-board"></div>
+    </section>
+  </main>
+</div>
 
-  <!-- Bandeau bas -->
-  <footer class="ticker"><span id="ticker-slot">Chargement…</span></footer>
-
-  <!-- JS -->
-  <script src="apps.js?v=20251004"></script>
+<!-- Scripts dynamiques -->
+<script src="app.js"></script>
 </body>
 </html>
