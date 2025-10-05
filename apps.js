@@ -1,230 +1,129 @@
-// -----------------------------------------------------------------------------
-// Dashboard Transports – Hippodrome Paris-Vincennes
-// -----------------------------------------------------------------------------
-// ⚙️ Inclut : RER A, Bus 77/201, météo, Vélib’, trafic, news, courses
-// -----------------------------------------------------------------------------
+/* responsive.css – drop-in */
+:root{
+  --bg:#f6f7fb;
+  --ink:#1b1f23;
+  --brand:#003366;
+  --card:#ffffff;
+  --line-rer:#d71920;
+  --line-77:#ff9800;
+  --line-201:#1b8e5a;
+  --radius:14px;
+  --shadow:0 6px 18px #00000014;
+  /* Hauteurs typées pour le mode 1080x1920 portrait */
+  --headerH:72px;
+  --alertH:44px;
+}
 
-// === Constantes principales ===
-const PROXY = "https://ratp-proxy.hippodrome-proxy42.workers.dev/?url=";
-const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.835&longitude=2.45&current_weather=true"; // ✅ direct, sans proxy
-const RSS_URL = "https://www.francetvinfo.fr/titres.rss";
+*{box-sizing:border-box}
+html,body{height:100%;scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  color:var(--ink);
+  background:var(--bg);
+  line-height:1.25;
+  font-size:clamp(14px, 1.8vw, 18px);
+}
 
-const STOP_IDS = {
-  RER_A: "STIF:StopArea:SP:43135:",
-  JOINVILLE: "STIF:StopArea:SP:70640:",
-  HIPPODROME: "STIF:StopArea:SP:463641:",
-  BREUIL: "STIF:StopArea:SP:463644:"
-};
+/* Header */
+header{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:10px 16px;
+  background:var(--brand); color:#fff; min-height:var(--headerH);
+}
+header .logos{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+header img{max-height:42px; height:auto; width:auto}
 
-const LINES = {
-  RER_A:   { id: "C01742", label: "RER A" },
-  BUS_77:  { id: "C02251", label: "Bus 77" },
-  BUS_201: { id: "C01219", label: "Bus 201" }
-};
+/* Alerte trafic */
+.alert-banner{
+  min-height:var(--alertH);
+  display:flex; align-items:center; gap:10px;
+  padding:8px 14px;
+  background:#fff6d4; color:#6b4c00; border-top:1px solid #00000010; border-bottom:1px solid #00000010;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
 
-const VELIB_STATIONS = { VINCENNES: "12163", BREUIL: "12128" };
+/* Grille des cartes */
+main{
+  padding:14px;
+}
+.wrapper{
+  display:grid; gap:14px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
 
-// === État global ===
-let newsItems = [];
-let currentNews = 0;
-let generalMessages = [];
+/* Cartes */
+.transport-block{
+  background:var(--card);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:12px;
+  min-width:0;  /* clamp overflow on small screens */
+}
 
-// === Utils ===
-async function fetchJSON(url, timeout = 10000) {
-  try {
-    const c = new AbortController();
-    const t = setTimeout(() => c.abort(), timeout);
-    const r = await fetch(url, { signal: c.signal, cache: "no-store" });
-    clearTimeout(t);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.json();
-  } catch (e) {
-    console.error("fetchJSON", url, e.message);
-    return null;
+.transport-block h2{
+  margin:0 0 8px 0;
+  font-size:clamp(18px, 2.4vw, 22px);
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+}
+
+.badge{
+  display:inline-flex; align-items:center; gap:6px;
+  font-weight:700; padding:4px 10px; border-radius:999px; color:#fff;
+  box-shadow: inset 0 -2px 0 #00000020;
+}
+.badge.rer{background:var(--line-rer)}
+.badge.l77{background:var(--line-77)}
+.badge.l201{background:var(--line-201)}
+
+.passage{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 0; border-top:1px dashed #00000015;
+  gap:10px; min-width:0;
+}
+.passage:first-child{border-top:none}
+.passage .when{font-variant-numeric:tabular-nums}
+
+/* Listes d'arrêts défilantes */
+.stops{
+  margin-top:8px; padding-top:8px; border-top:1px solid #00000010;
+  display:flex; gap:10px; overflow:auto hidden; -webkit-overflow-scrolling:touch;
+}
+.stop-pill{
+  white-space:nowrap; border:1px solid #00000014; padding:6px 10px; border-radius:999px; background:#fafbfe;
+}
+
+/* États */
+.state-imminent{color:#0a7a2a; font-weight:700}
+.state-delayed{color:#b45309; font-weight:600}
+.state-cancel{color:#b00020; font-weight:700; text-decoration:line-through}
+
+/* --- Portrait plein écran 1080×1920 : pas de scroll, 4 cartes égales --- */
+@media (orientation:portrait) and (min-height: 1000px){
+  html,body{overflow:hidden}
+  main{
+    height: calc(100dvh - var(--headerH) - var(--alertH));
+    padding:12px 14px 16px;
+  }
+  .wrapper{
+    height:100%;
+    grid-template-columns:1fr;
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+  }
+  .transport-block{display:flex; flex-direction:column; min-height:0}
+  .transport-block .scroll{
+    overflow:auto; margin-top:6px;
   }
 }
 
-async function fetchText(url, timeout = 10000) {
-  try {
-    const c = new AbortController();
-    const t = setTimeout(() => c.abort(), timeout);
-    const r = await fetch(url, { signal: c.signal, cache: "no-store" });
-    clearTimeout(t);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.text();
-  } catch (e) {
-    console.error("fetchText", url, e.message);
-    return "";
-  }
+/* --- Mobile ≤ 600px : 1 colonne, compacter --- */
+@media (max-width: 600px){
+  header img{max-height:32px}
+  .wrapper{grid-template-columns:1fr}
+  .transport-block{padding:10px}
 }
 
-function cleanText(str = "") {
-  return str.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+/* --- Large desktop ≥ 1200px : colonnes plus larges --- */
+@media (min-width: 1200px){
+  .wrapper{grid-template-columns: repeat(2, minmax(380px, 1fr))}
 }
-
-function minutesFromISO(iso) {
-  if (!iso) return null;
-  return Math.max(0, Math.round((new Date(iso).getTime() - Date.now()) / 60000));
-}
-
-// === Horloge ===
-function setClock() {
-  const el = document.getElementById("clock");
-  if (el) el.textContent = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
-// === Météo ===
-const WEATHER_CODES = {
-  0: "Ciel dégagé", 1: "Principalement clair", 2: "Partiellement nuageux", 3: "Couvert",
-  61: "Pluie faible", 63: "Pluie modérée", 65: "Pluie forte",
-  80: "Averses faibles", 81: "Averses modérées", 82: "Fortes averses",
-  95: "Orages", 96: "Orages grêle", 99: "Orages grêle"
-};
-
-function weatherEmojiFromCode(code) {
-  if ([0, 1].includes(code)) return "☀️";
-  if ([2, 3].includes(code)) return "⛅";
-  if ([61, 63, 65, 80, 81, 82].includes(code)) return "🌧️";
-  if ([95, 96, 99].includes(code)) return "⛈️";
-  return "🌤️";
-}
-
-async function refreshWeather() {
-  try {
-    const data = await fetchJSON(WEATHER_URL, 10000);
-    const tempEl = document.getElementById("weather-temp");
-    const descEl = document.getElementById("weather-desc");
-    const emojiEl = document.getElementById("weather-emoji");
-
-    if (!data?.current_weather) throw new Error("no data");
-    const { temperature, weathercode } = data.current_weather;
-
-    const text = WEATHER_CODES[weathercode] || "Conditions actuelles";
-    if (tempEl) tempEl.textContent = `${Math.round(temperature)}°`;
-    if (descEl) descEl.textContent = text;
-    if (emojiEl) emojiEl.textContent = weatherEmojiFromCode(weathercode);
-  } catch (e) {
-    console.warn("refreshWeather", e.message);
-    document.getElementById("weather-desc").textContent = "Météo indisponible";
-  }
-}
-
-// === News France Info ===
-async function refreshNews() {
-  const xml = await fetchText(PROXY + encodeURIComponent(RSS_URL));
-  let items = [];
-  if (xml) {
-    try {
-      const doc = new DOMParser().parseFromString(xml, "application/xml");
-      items = [...doc.querySelectorAll("item")].slice(0, 6).map(node => ({
-        title: cleanText(node.querySelector("title")?.textContent || ""),
-        desc: cleanText(node.querySelector("description")?.textContent || "")
-      }));
-    } catch (e) {
-      console.error("refreshNews parse", e);
-    }
-  }
-  newsItems = items;
-  renderNews();
-}
-
-function renderNews() {
-  const cont = document.getElementById("news-carousel");
-  if (!cont) return;
-  cont.innerHTML = "";
-  if (!newsItems.length) {
-    cont.innerHTML = "<div class='news-card active'>Aucune actualité</div>";
-    return;
-  }
-  newsItems.forEach((n, i) => {
-    const card = document.createElement("div");
-    card.className = "news-card" + (i === currentNews ? " active" : "");
-    card.innerHTML = `<div class="news-title">${n.title}</div><div class="news-desc">${n.desc}</div>`;
-    cont.appendChild(card);
-  });
-}
-
-function nextNews() {
-  if (!newsItems.length) return;
-  currentNews = (currentNews + 1) % newsItems.length;
-  renderNews();
-}
-
-// === Vélib ===
-async function refreshVelib() {
-  for (const [key, stationId] of Object.entries(VELIB_STATIONS)) {
-    const el = document.getElementById(`velib-${key.toLowerCase()}`);
-    if (!el) continue;
-    try {
-      const url = `https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records?where=stationcode%3D${stationId}&limit=1`;
-      const data = await fetchJSON(url);
-      const st = data?.results?.[0];
-      if (!st) {
-        el.textContent = "Indispo";
-        continue;
-      }
-      const mech = st.mechanical_bikes || 0;
-      const ebike = st.ebike_bikes || 0;
-      const docks = st.numdocksavailable || 0;
-      el.textContent = `🚲${mech} 🔌${ebike} 🅿️${docks}`;
-    } catch (e) {
-      console.error("refreshVelib", e);
-      el.textContent = "Indispo";
-    }
-  }
-}
-
-// === Trafic général IDFM ===
-async function fetchGeneralMessages() {
-  const ids = Object.values(LINES).map(l => l.id);
-  const msgs = [];
-  await Promise.all(ids.map(async id => {
-    const url = PROXY + encodeURIComponent(`https://prim.iledefrance-mobilites.fr/marketplace/general-message?LineRef=${id}`);
-    const data = await fetchJSON(url);
-    const deliveries = data?.Siri?.ServiceDelivery?.GeneralMessageDelivery || [];
-    deliveries.forEach(del => (del.InfoMessage || []).forEach(msg => {
-      const txt = cleanText(msg?.Content?.Message?.[0]?.MessageText?.[0]?.value || msg?.Description || "");
-      if (txt) msgs.push({ line: id, text: txt });
-    }));
-  }));
-  generalMessages = msgs;
-  renderGeneralMessages();
-}
-
-function renderGeneralMessages() {
-  const banner = document.getElementById("traffic-banner");
-  if (!banner) return;
-  if (!generalMessages.length) {
-    banner.className = "traffic-banner ok";
-    banner.textContent = "🟢 Trafic normal sur les lignes suivies.";
-  } else {
-    banner.className = "traffic-banner alert";
-    banner.textContent = "⚠️ " + generalMessages.map(m => `[${m.line}] ${m.text}`).join(" • ");
-  }
-}
-
-// === Boucles automatiques ===
-let loopsStarted = false;
-function startLoops() {
-  if (loopsStarted) return;
-  loopsStarted = true;
-  setInterval(refreshWeather, 30 * 60 * 1000);
-  setInterval(refreshVelib, 3 * 60 * 1000);
-  setInterval(fetchGeneralMessages, 5 * 60 * 1000);
-  setInterval(nextNews, 12000);
-  setInterval(setClock, 1000);
-}
-
-// === Init ===
-async function init() {
-  setClock();
-  await Promise.allSettled([
-    refreshWeather(),
-    refreshNews(),
-    refreshVelib(),
-    fetchGeneralMessages()
-  ]);
-  renderGeneralMessages();
-  startLoops();
-}
-init();
