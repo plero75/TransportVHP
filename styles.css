@@ -1,0 +1,137 @@
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: #f5f5f5;
+  color: #222;
+  font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Empêcher la sélection sur certains éléments */
+.noselect {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Header */
+.topbar {
+  background: #003366;
+  color: #fff;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.brand-title {
+  font-weight: bold;
+  font-size: 1.4em;
+}
+.brand-sub {
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+.meta {
+  text-align: right;
+}
+.meta-row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.saint {
+  font-style: italic;
+}
+.muted {
+  color: #666;
+}
+
+/* Banner */
+.traffic-banner {
+  background: #eaf7ee;
+  border: 1px solid #bcd;
+  border-radius: 8px;
+  margin: 10px 20px;
+  padding: 8px 12px;
+}
+.traffic-banner.alert {
+  background: #fff4e6;
+  border-color: #e48a6a;
+}
+
+/* Grille */
+.grid {
+  display: grid;
+  gap: 14px;
+  margin: 14px 20px;
+}
+.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+.grid-1 {
+  grid-template-columns: 1fr;
+}
+.panel {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px #0001;
+  padding: 12px 14px;
+}
+.panel h2 {
+  font-size: 1em;
+  margin: 0 0 8px;
+  color: #2450a4;
+}
+
+/* Board contenu */
+.board {
+  font-size: 0.9em;
+  color: #333;
+}
+
+/* News */
+.news-carousel {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+}
+.news-card {
+  flex: 0 0 280px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  background: #fafafa;
+  padding: 10px;
+}
+.news-card.active {
+  outline: 2px solid #2450a4;
+}
+
+/* Ticker */
+.ticker {
+  text-align: center;
+  padding: 10px;
+  font-size: 0.9em;
+  background: #fafafa;
+  border-top: 1px solid #e0e0e0;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .brand-sub {
+    display: none;
+  }
+  .grid {
+    margin: 10px;
+  }
+  .panel {
+    padding: 10px;
+  }
+}
