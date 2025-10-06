@@ -319,7 +319,7 @@ async function renderLine2(){
 
 // === Trafic banner (general-message) ===
 async function refreshTrafficBanner(){
-  const ids=["C01742","C02251","C01219"]; // RER A, 77, 201
+  const ids=["STIF:Line::C01742:","STIF:Line::C02251:","STIF:Line::C01219:"]; // RER A, 77, 201
   const msgs=[];
   await Promise.all(ids.map(async id=>{
     const data=await fetchJSON(PRIM_GENERAL(id),10000);
