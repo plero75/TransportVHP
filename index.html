@@ -2,17 +2,18 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Dashboard IDFM – Hippodrome Paris-Vincennes (debug)</title>
+  <title>Dashboard Hippodrome Paris-Vincennes — DEBUG</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- ===== En-tête ===== -->
-  <header id="header-main" class="topbar">
+  <!-- HEADER -->
+  <header class="topbar">
     <div class="brand">
       <div class="brand-title">Hippodrome Paris-Vincennes</div>
-      <div class="brand-sub">Tableau d’information temps réel (debug)</div>
+      <div class="brand-sub">Tableau d’information — temps réel</div>
     </div>
     <div class="meta">
       <div class="meta-row">
@@ -28,28 +29,23 @@
     </div>
   </header>
 
-  <!-- ===== Bandeau d’alerte trafic global ===== -->
-  <div id="banner-alert" class="traffic-banner ok">
-    Trafic normal sur les lignes suivies.
-  </div>
+  <!-- BANNER (GENERAL MESSAGE) -->
+  <div id="banner-alert" class="traffic-banner ok">Trafic normal sur les lignes suivies.</div>
 
-  <!-- ===== LIGNE 1 – 3 colonnes ===== -->
+  <!-- LINE 1 (3 columns) -->
   <section class="grid grid-3">
-    <!-- Colonne 1 : RER A -->
     <article class="panel">
       <h2>RER A — Joinville-le-Pont</h2>
       <div id="rerA-body" class="station"></div>
       <div id="rer-traffic" class="traffic-sub"></div>
     </article>
 
-    <!-- Colonne 2 : Hippodrome – Bus 77 -->
     <article class="panel">
       <h2>Hippodrome de Vincennes — Bus 77</h2>
       <div id="hippo77-body" class="station"></div>
       <div id="hippo77-traffic" class="traffic-sub"></div>
     </article>
 
-    <!-- Colonne 3 : École du Breuil — 77 & 201 -->
     <article class="panel">
       <h2>École du Breuil — Bus 77 & 201</h2>
       <div id="breuil77-body" class="station"></div>
@@ -58,7 +54,7 @@
     </article>
   </section>
 
-  <!-- ===== LIGNE 2 – 2 colonnes : Joinville — Tous bus (hors RER) ===== -->
+  <!-- LINE 2 (2 columns): Joinville all buses -->
   <section class="grid grid-2">
     <article class="panel">
       <h2>Joinville-le-Pont — Tous les bus (hors RER)</h2>
@@ -70,9 +66,9 @@
     </article>
   </section>
 
-  <!-- ===== Vélib ===== -->
+  <!-- VELIB -->
   <section class="grid grid-1">
-    <article id="velib-block" class="panel">
+    <article class="panel">
       <h2>Vélib — Vincennes & École du Breuil</h2>
       <div class="velib-grid">
         <div class="velib-station">
@@ -87,12 +83,11 @@
     </article>
   </section>
 
-  <!-- ===== Trafic routier ===== -->
+  <!-- ROAD TRAFFIC -->
   <section class="grid grid-2">
     <article class="panel">
       <h2>Trafic routier — Portail Bison Futé</h2>
       <div class="map-wrap">
-        <!-- URL corrigée (ancienne /dans-ma-region.html 404) -->
         <iframe id="sytadin-map" title="Carte trafic"
                 src="https://www.bison-fute.gouv.fr/les-previsions.html"
                 loading="lazy" referrerpolicy="no-referrer"></iframe>
@@ -107,7 +102,7 @@
     </article>
   </section>
 
-  <!-- ===== Courses ===== -->
+  <!-- COURSES -->
   <section class="grid grid-2">
     <article class="panel">
       <h2>Prochaines courses — Vincennes</h2>
@@ -119,7 +114,7 @@
     </article>
   </section>
 
-  <!-- ===== News ===== -->
+  <!-- NEWS -->
   <section class="grid grid-1">
     <article class="panel">
       <h2>Flash News — France Info</h2>
@@ -134,3 +129,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+ 
