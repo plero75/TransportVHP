@@ -1,103 +1,26 @@
-:root{
-  --blue:#1b2a6e;
-  --bg:#eef2f8;
-  --panel:#ffffff;
-  --panel-border:#e1e6f2;
-  --text:#0a1533;
-
-  --chip-bg:#111827;
-  --chip-text:#facc15;
-
-  --ok:#205b2b;
-  --warn:#7a1b1b;
-
-  --rer-a:#e41e26;
-}
-
-/* Base */
-*{box-sizing:border-box}
-html,body{height:100%;margin:0}
-body{
-  background:var(--bg);
-  color:var(--text);
-  font:14px/1.4 system-ui,Segoe UI,Roboto,Arial,sans-serif;
-  overflow:auto; /* scroll activé */
-}
-
-/* Header */
-.appbar{
-  background:var(--blue);color:#fff;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:10px 16px; position:sticky; top:0; z-index:1000;
-}
-.appbar .left{display:flex;align-items:center;gap:10px}
-.appbar h1{margin:0;font-size:20px}
-.appbar .brand{opacity:.9;border-left:1px solid #2b5ad6;padding-left:8px}
-.appbar .right{text-align:right}
-.wx,.saint,.datetime{font-size:13px}
-
-/* Banner */
-.banner{margin:10px 16px;background:#eef9f0;border:2px solid #cde9d6;color:var(--ok);border-radius:10px;padding:8px 12px}
-.banner.alert{background:#fff2f2;border-color:#ffc7c7;color:var(--warn)}
-
-/* Grid rows */
-.row{display:grid;gap:12px;margin:10px 16px}
-.row-3{grid-template-columns:1fr 1fr 1fr}
-.row-2{grid-template-columns:1fr 1fr}
-.row-1{grid-template-columns:1fr}
-
-/* Cards */
-.card{background:var(--panel);border:1px solid var(--panel-border);border-radius:12px;box-shadow:0 2px 8px #00000014;padding:8px 10px}
-.card h2{margin:4px 0 8px;font-size:16px;color:#003399}
-
-/* Blocks (lignes/directions) */
-.block{background:#f7f9ff;border:1px solid var(--panel-border);border-radius:10px;margin:8px 0;padding:6px 8px}
-.title{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.pill{display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:24px;padding:0 10px;border-radius:999px;background:#2450a4;color:#fff;font-weight:800}
-.pill.rer{background:var(--rer-a)}
-.name{font-weight:700}
-.dir{color:#0b2a6d;font-weight:700;margin:2px 0 6px}
-
-/* Times */
-.rows{display:flex;gap:8px;flex-wrap:wrap}
-.time{display:flex;flex-direction:column;align-items:center}
-.badge{background:var(--chip-bg);color:var(--chip-text);font-weight:800;border-radius:8px;padding:6px 10px;min-width:62px;text-align:center}
-.badge.imminent{outline:2px solid #2ecc71}
-.badge.delay{outline:2px dashed #ffb703}
-.badge.cancelled{background:#f2f3f5;color:#7a1b1b}
-.sub{font-size:12px;color:#374151;margin-top:3px}
-.note{display:flex;align-items:center;gap:8px;color:#6b7280;margin-top:4px}
-.note.gtfs{background:#f1f5f9;border:1px dashed #d1d5db;border-radius:8px;padding:6px 8px}
-
-/* Joinville all buses */
-.two-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-
-/* Velib */
-.velib-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.velib-station{background:#f7f9ff;border:1px solid var(--panel-border);border-radius:10px;padding:8px}
-.velib-title{font-weight:700;margin-bottom:6px}
-.velib-stats{display:flex;gap:18px}
-.velib-stats .item{display:flex;flex-direction:column;align-items:center}
-.velib-value{font-weight:800;font-size:20px}
-.velib-label{font-size:12px;color:#6b7280}
-
-/* Road */
-.road-list .road{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed #e5e7eb}
-.badge-road{font-weight:800;border-radius:8px;padding:4px 8px;background:#e5f5e9;color:#126b2e}
-.badge-road.warn{background:#fdecec;color:#8a2727}
-
-/* News */
-.news-carousel{min-height:44px}
-.news-card{display:none}
-.news-card.active{display:block}
-.news-title{font-weight:700;margin-bottom:4px}
-.news-desc{color:#374151}
-
-/* Courses */
-.courses .course{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb}
-.badge-time{font-weight:800;border-radius:8px;padding:4px 8px;background:#eef2ff;color:#1f2a7a;min-width:72px;text-align:center}
-.course-name{font-weight:700}
-.course-meta{color:#6b7280;font-size:12px}
-
-/* Footer */
-.footer{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--blue);color:#cfe0ff;margin-top:16px}
+body{margin:0;font-family:system-ui;background:#eef2f8;color:#111;}
+.appbar{background:#1b2a6e;color:#fff;display:flex;justify-content:space-between;padding:8px 16px;}
+.appbar h1{font-size:18px;margin:0;}
+.banner{margin:10px 16px;padding:8px 12px;border-radius:8px;}
+.banner.ok{background:#e6f5ea;color:#1a5c2e;}
+.banner.alert{background:#ffecec;color:#8b0000;}
+.row{display:grid;gap:12px;margin:10px 16px;}
+.row-3{grid-template-columns:1fr 1fr 1fr;}
+.row-1{grid-template-columns:1fr;}
+.card{background:#fff;border-radius:12px;padding:10px;border:1px solid #e2e2e2;box-shadow:0 2px 6px #0001;}
+.card h2{margin:0 0 6px;color:#1b2a6e;font-size:16px;}
+.fullwidth{grid-column:1/-1;}
+.joinville-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.block{background:#f6f8ff;border:1px solid #d7dcf3;border-radius:10px;margin:8px 0;padding:6px 8px;}
+.title{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.pill{background:#2450a4;color:#fff;border-radius:999px;padding:2px 10px;font-weight:700;}
+.dir{font-weight:700;color:#0b2a6d;margin-top:6px;}
+.rows{display:flex;gap:8px;flex-wrap:wrap;}
+.badge{background:#111;color:#facc15;border-radius:8px;padding:4px 8px;min-width:48px;text-align:center;font-weight:700;}
+.badge.imminent{outline:2px solid #2ecc71;}
+.badge.delay{outline:2px dashed #ffb703;}
+.badge.cancelled{background:#ddd;color:#700;}
+.note{color:#555;font-size:13px;margin-top:4px;}
+.map-container{text-align:center;}
+.sytadin-img{width:100%;max-width:1000px;border-radius:12px;}
+.footer{background:#1b2a6e;color:#cfe0ff;text-align:center;padding:6px;font-size:13px;}
