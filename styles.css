@@ -67,6 +67,7 @@ body{
 .badge.cancelled{background:#f2f3f5;color:#7a1b1b}
 .sub{font-size:12px;color:#374151;margin-top:3px}
 .note{display:flex;align-items:center;gap:8px;color:#6b7280;margin-top:4px}
+.note.gtfs{background:#f1f5f9;border:1px dashed #d1d5db;border-radius:8px;padding:6px 8px}
 
 /* Joinville all buses */
 .two-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
