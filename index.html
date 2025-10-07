@@ -2,131 +2,64 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Dashboard Hippodrome Paris-Vincennes — DEBUG</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard Transports Vincennes — LIVE</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <!-- HEADER -->
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-title">Hippodrome Paris-Vincennes</div>
-      <div class="brand-sub">Tableau d’information — temps réel</div>
+  <header class="appbar">
+    <div class="left">
+      <div class="brand">Hippodrome</div>
+      <h1>Dashboard Transports Vincennes</h1>
     </div>
-    <div class="meta">
-      <div class="meta-row">
-        <span id="date">—</span>
-        <span id="clock">—:—</span>
-      </div>
-      <div class="meta-row">
-        <span id="weather-temp">—°C</span>
-        <span id="weather-desc">Météo</span>
-        <span id="saint" class="saint">Fête du jour</span>
-      </div>
-      <div class="meta-row muted" id="lastUpdate">Maj —:—</div>
+    <div class="right">
+      <div class="wx"><span id="weather-temp">--°C</span> <span id="weather-desc">Météo</span></div>
+      <div class="saint" id="saint">Fête du jour</div>
+      <div class="datetime"><span id="dateLabel">--</span> <span id="clock">--:--:--</span></div>
     </div>
   </header>
 
-  <!-- BANNER (GENERAL MESSAGE) -->
-  <div id="banner-alert" class="traffic-banner ok">Trafic normal sur les lignes suivies.</div>
+  <!-- BANNER -->
+  <div id="banner" class="banner ok">Trafic normal sur les lignes suivies.</div>
 
-  <!-- LINE 1 (3 columns) -->
-  <section class="grid grid-3">
-    <article class="panel">
-      <h2>RER A — Joinville-le-Pont</h2>
-      <div id="rerA-body" class="station"></div>
-      <div id="rer-traffic" class="traffic-sub"></div>
-    </article>
+  <!-- GRID L1 (2x2) -->
+  <main class="grid-2x2">
+    <section class="card">
+      <h2><strong>Joinville-le-Pont — RER A</strong></h2>
+      <div id="rerA-body"></div>
+    </section>
 
-    <article class="panel">
-      <h2>Hippodrome de Vincennes — Bus 77</h2>
-      <div id="hippo77-body" class="station"></div>
-      <div id="hippo77-traffic" class="traffic-sub"></div>
-    </article>
+    <section class="card">
+      <h2><strong>Joinville-le-Pont — Bus (résumé)</strong></h2>
+      <div id="joinvillebus-body"></div>
+    </section>
 
-    <article class="panel">
-      <h2>École du Breuil — Bus 77 & 201</h2>
-      <div id="breuil77-body" class="station"></div>
-      <div id="breuil201-body" class="station sep"></div>
-      <div id="breuil-traffic" class="traffic-sub"></div>
-    </article>
+    <section class="card">
+      <h2><strong>Hippodrome de Vincennes — Bus 77</strong></h2>
+      <div id="hippo-body"></div>
+    </section>
+
+    <section class="card">
+      <h2><strong>École du Breuil — Bus 201 / 77</strong></h2>
+      <div id="breuil-body"></div>
+    </section>
+  </main>
+
+  <!-- GRID L2 (Joinville — Tous les bus) -->
+  <section class="card wide">
+    <h2><strong>Joinville-le-Pont — Tous les bus (hors RER)</strong></h2>
+    <div class="two-cols">
+      <div id="joinville-left"></div>
+      <div id="joinville-right"></div>
+    </div>
   </section>
 
-  <!-- LINE 2 (2 columns): Joinville all buses -->
-  <section class="grid grid-2">
-    <article class="panel">
-      <h2>Joinville-le-Pont — Tous les bus (hors RER)</h2>
-      <div id="joinville-col-left" class="station"></div>
-    </article>
-    <article class="panel">
-      <h2>&nbsp;</h2>
-      <div id="joinville-col-right" class="station"></div>
-    </article>
-  </section>
-
-  <!-- VELIB -->
-  <section class="grid grid-1">
-    <article class="panel">
-      <h2>Vélib — Vincennes & École du Breuil</h2>
-      <div class="velib-grid">
-        <div class="velib-station">
-          <div class="velib-name">Vincennes</div>
-          <div id="velib-vincennes" class="velib-values">—</div>
-        </div>
-        <div class="velib-station">
-          <div class="velib-name">École du Breuil</div>
-          <div id="velib-breuil" class="velib-values">—</div>
-        </div>
-      </div>
-    </article>
-  </section>
-
-  <!-- ROAD TRAFFIC -->
-  <section class="grid grid-2">
-    <article class="panel">
-      <h2>Trafic routier — Portail Bison Futé</h2>
-      <div class="map-wrap">
-        <iframe id="sytadin-map" title="Carte trafic"
-                src="https://www.bison-fute.gouv.fr/les-previsions.html"
-                loading="lazy" referrerpolicy="no-referrer"></iframe>
-      </div>
-      <div id="road-fallback" class="muted small">
-        Si la carte n’apparaît pas, les événements principaux sont listés à droite.
-      </div>
-    </article>
-    <article class="panel">
-      <h2>Perturbations locales (Sytadin / API Paris)</h2>
-      <div id="road-list" class="board"></div>
-    </article>
-  </section>
-
-  <!-- COURSES -->
-  <section class="grid grid-2">
-    <article class="panel">
-      <h2>Prochaines courses — Vincennes</h2>
-      <div id="courses-vincennes" class="board"></div>
-    </article>
-    <article class="panel">
-      <h2>Prochaines courses — Enghien</h2>
-      <div id="courses-enghien" class="board"></div>
-    </article>
-  </section>
-
-  <!-- NEWS -->
-  <section class="grid grid-1">
-    <article class="panel">
-      <h2>Flash News — France Info</h2>
-      <div id="news-carousel" class="news-carousel"></div>
-    </article>
-  </section>
-
-  <footer class="ticker">
-    <span id="ticker-slot">Chargement…</span>
+  <footer class="footer">
+    <div>© 2025 • PRIM IDFM, Open-Meteo, Nominis • Affichage temps réel</div>
+    <div>Dernière mise à jour : <span id="lastUpdate">--:--:--</span></div>
   </footer>
 
   <script src="app.js"></script>
 </body>
 </html>
- 
