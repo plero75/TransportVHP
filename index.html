@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; img-src * data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src *; frame-ancestors 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; img-src * data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src *;">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dashboard Transports Vincennes — LIVE</title>
   <link rel="stylesheet" href="styles.css" />
@@ -42,19 +42,18 @@
     </section>
   </section>
 
-  <!-- LIGNE 2 – 2 colonnes -->
+  <!-- LIGNE 2 – 2 colonnes (tous les bus Joinville) -->
   <section class="row row-2">
-    <section class="card">
-      <h2><strong>Joinville-le-Pont — RER A (Paris / Boissy)</strong></h2>
-      <div id="rerA-body-dup"></div>
-    </section>
-
     <section class="card">
       <h2><strong>Joinville-le-Pont — Tous les bus (hors RER)</strong></h2>
       <div class="two-cols">
         <div id="joinville-left"></div>
         <div id="joinville-right"></div>
       </div>
+    </section>
+    <section class="card">
+      <h2><strong>Trafic routier — secteur Vincennes / Joinville</strong></h2>
+      <div id="road-list" class="road-list">Chargement…</div>
     </section>
   </section>
 
@@ -75,15 +74,7 @@
     </section>
   </section>
 
-  <!-- LIGNE 4 – Trafic routier -->
-  <section class="row row-1">
-    <section class="card">
-      <h2><strong>Trafic routier — secteur Vincennes / Joinville</strong></h2>
-      <div id="road-list" class="road-list">Chargement…</div>
-    </section>
-  </section>
-
-  <!-- LIGNE 5 – Flash News -->
+  <!-- LIGNE 4 – Flash News -->
   <section class="row row-1">
     <section class="card">
       <h2><strong>France Info — Flash</strong></h2>
@@ -91,7 +82,7 @@
     </section>
   </section>
 
-  <!-- LIGNE 6 – Courses (2 colonnes) -->
+  <!-- LIGNE 5 – Courses (2 colonnes) -->
   <section class="row row-2">
     <section class="card">
       <h2><strong>Prochaines courses — Vincennes</strong></h2>
@@ -104,7 +95,7 @@
   </section>
 
   <footer class="footer">
-    <div>© 2025 • PRIM IDFM, Open-Meteo, Nominis, Opendata Paris, PMU • Affichage temps réel</div>
+    <div>© 2025 • PRIM IDFM, Open-Meteo, Nominis, Opendata Paris, PMU</div>
     <div>Dernière mise à jour : <span id="lastUpdate">--:--:--</span></div>
   </footer>
 
