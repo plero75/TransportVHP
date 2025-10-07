@@ -1,13 +1,13 @@
 // =============================
-// Dashboard IDFM – Logic complet
+// Dashboard IDFM – Debug build (UTF-8 safe, logs enabled)
 // =============================
 
-// Proxy & règles (Open-Meteo direct)
+// Proxy (Open-Meteo direct)
 const PROXY = "https://ratp-proxy.hippodrome-proxy42.workers.dev/?url=";
 
 // ---- Endpoints ----
 const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.835&longitude=2.45&current_weather=true";
-const SAINT_URL   = PROXY + encodeURIComponent("https://nominis.cef.fr/json/nominis.php");
+const SAINT_URL   = PROXY + encodeURIComponent('https://nominis.cef.fr/json/nominis.php');
 const RSS_URL     = PROXY + encodeURIComponent("https://www.francetvinfo.fr/titres.rss");
 
 // StopAreas
@@ -18,7 +18,7 @@ const STOP_IDS = {
   JOINVILLE: "STIF:StopArea:SP:70640:"
 };
 
-// Constructions d'URL PRIM/ODS
+// PRIM/ODS helpers
 const PRIM_STOP = ref => PROXY + encodeURIComponent(
   `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${ref}`
 );
@@ -51,20 +51,30 @@ const GLOBAL_LINES = ["C01742","C02251","C01219"]; // RER A, 77, 201
 
 // ==== Utils ====
 async function fetchJSON(url, timeout=12000){
+  const stamp = Date.now();
   try{
     const c=new AbortController(); const t=setTimeout(()=>c.abort(),timeout);
     const r=await fetch(url,{signal:c.signal, cache:"no-store"}); clearTimeout(t);
+    console.debug("GET JSON:", url, "→", r.status, `${Date.now()-stamp}ms`);
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.json();
-  }catch(e){ console.error("fetchJSON", url, e.message); return null; }
+  }catch(e){
+    console.error("fetchJSON ❌", url, e.message);
+    return null;
+  }
 }
 async function fetchText(url, timeout=12000){
+  const stamp = Date.now();
   try{
     const c=new AbortController(); const t=setTimeout(()=>c.abort(),timeout);
     const r=await fetch(url,{signal:c.signal, cache:"no-store"}); clearTimeout(t);
+    console.debug("GET TEXT:", url, "→", r.status, `${Date.now()-stamp}ms`);
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.text();
-  }catch(e){ console.error("fetchText", url, e.message); return ""; }
+  }catch(e){
+    console.error("fetchText ❌", url, e.message);
+    return "";
+  }
 }
 function cleanText(s=""){return s.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();}
 function minutesFromISO(iso){ if(!iso) return null; return Math.max(0, Math.round((new Date(iso)-Date.now())/60000)); }
@@ -82,13 +92,18 @@ function setLastUpdate(){ const el=document.getElementById("lastUpdate"); if(el)
 const WEATHER_CODES = {0:"Ciel dégagé",1:"Ciel dégagé",2:"Éclaircies",3:"Ciel couvert",45:"Brouillard",48:"Brouillard givrant",61:"Pluie faible",63:"Pluie",65:"Pluie forte",80:"Averses",81:"Averses",82:"Forte averse",95:"Orages",96:"Orages grêle",99:"Orages grêle"};
 function weatherLabel(c){return WEATHER_CODES[c]||"Météo";}
 async function refreshWeather(){
-  const data=await fetchJSON(WEATHER_URL, 10000); // direct
+  const data=await fetchJSON(WEATHER_URL, 10000);
   const tempEl=document.getElementById("weather-temp");
   const descEl=document.getElementById("weather-desc");
-  if(!data?.current_weather){ if(descEl) descEl.textContent="Météo indisponible"; tickerData.timeWeather="Météo indisponible"; return; }
+  if(!data?.current_weather){
+    if(descEl) descEl.textContent="Météo indisponible";
+    tickerData.timeWeather="Météo indisponible";
+    return;
+  }
   const {temperature, weathercode}=data.current_weather;
   const t=`${Math.round(temperature)}°C`; if(tempEl) tempEl.textContent=t; if(descEl) descEl.textContent=weatherLabel(weathercode);
   tickerData.timeWeather=`${t} • ${weatherLabel(weathercode)}`;
+  console.debug("MÉTÉO ✅", t, weathercode);
 }
 async function refreshSaint(){
   try{
@@ -96,7 +111,8 @@ async function refreshSaint(){
     const name=data?.response?.prenoms || "";
     const el=document.getElementById("saint"); if(el) el.textContent=name?`Fête : ${name}`:"Fête du jour";
     tickerData.saint = name ? `Fête : ${name}` : "";
-  }catch{ const el=document.getElementById("saint"); if(el) el.textContent="Fête du jour indisponible"; }
+    console.debug("SAINT ✅", name);
+  }catch(e){ const el=document.getElementById("saint"); if(el) el.textContent="Fête du jour indisponible"; console.warn("SAINT ❌", e.message); }
 }
 
 // ==== News ====
@@ -107,9 +123,10 @@ async function refreshNews(){
     try{
       const doc=new DOMParser().parseFromString(xml,"application/xml");
       items=[...doc.querySelectorAll("item")].slice(0,6).map(n=>({title:cleanText(n.querySelector("title")?.textContent||""), desc:cleanText(n.querySelector("description")?.textContent||"")}));
-    }catch(e){ console.error("RSS parse",e); }
+    }catch(e){ console.error("RSS parse ❌",e); }
   }
   newsItems=items; renderNews();
+  console.debug("NEWS ✅", items.length, "items");
 }
 function renderNews(){
   const cont=document.getElementById("news-carousel"); if(!cont) return;
@@ -131,7 +148,8 @@ async function refreshVelib(){
       const st=data?.results?.[0]; if(!st){ el.textContent="Indisponible"; return; }
       const mech=st.mechanical_bikes??0, elec=st.ebike_bikes??0, docks=st.numdocksavailable??0;
       el.textContent=`Mécaniques ${mech} • Électriques ${elec} • Bornes ${docks}`;
-    }catch(e){ el.textContent="Indisponible"; }
+      console.debug("VÉLIB ✅", key, mech, elec, docks);
+    }catch(e){ el.textContent="Indisponible"; console.warn("VÉLIB ❌", key, e.message); }
   };
   await Promise.all([upd("vincennes", VELIB_STATIONS.VINCENNES), upd("breuil", VELIB_STATIONS.BREUIL)]);
 }
@@ -228,6 +246,7 @@ async function refreshTrafficBanner(){
   if(!msgs.length){ banner.className="traffic-banner ok"; banner.textContent="Trafic normal sur les lignes suivies."; }
   else{ banner.className="traffic-banner alert"; banner.textContent=msgs.map(m=>`[${m.lineId}] ${m.text}`).join(" • "); }
   tickerData.traffic=banner.textContent;
+  console.debug("GENERAL MESSAGE ✅", msgs.length, "messages");
 }
 async function renderTrafficStripForLines(lineIds, nodeId){
   const el=document.getElementById(nodeId); if(!el) return;
@@ -262,4 +281,264 @@ async function renderRerA(){
     const sorted=vBoissy.filter(x=>Number.isFinite(x.minutes)).sort((a,b)=>a.minutes-b.minutes).slice(0,3);
     block.innerHTML += `<div class="dir">Vers Boissy / Marne-la-Vallée</div><div class="rows">${sorted.map(cellHTML).join("")}</div>`;
   }else{
-    block.innerHTML += placeholderDirHTML("Vers Boissy / Marne-la
+    block.innerHTML += placeholderDirHTML("Vers Boissy / Marne-la-Vallée","Service terminé");
+  }
+  cont.appendChild(block);
+
+  await renderTrafficStripForLines(["C01742"], "rer-traffic");
+  console.debug("RER A ✅", vParis.length, vBoissy.length);
+}
+
+// ==== Hippodrome 77 ====
+async function renderHippo77(){
+  const cont=document.getElementById("hippo77-body"); cont.innerHTML="";
+  const data=await fetchJSON(PRIM_STOP(STOP_IDS.HIPPODROME), 12000);
+  const visits=parseStop(data);
+  const grouped=groupByLineAndDirection(visits,3);
+
+  let target=null;
+  for(const g of grouped){
+    const m=await metaById(g.lineId);
+    if((m.code||"").toUpperCase()==="77"){ target={ m, g }; break; }
+  }
+  const meta = target?.m || await metaByCode("77");
+  const g = target?.g || { directions:[] };
+
+  const block=document.createElement("div"); block.className="line-block";
+  block.innerHTML=`<div class="line-header"><span class="pill" style="background:${meta.color};color:${meta.text}">${meta.code}</span><div class="name">Bus 77</div></div>`;
+
+  if(g.directions.length){
+    g.directions.slice(0,2).forEach(d=>{
+      const rows=d.list.slice(0,3).map(cellHTML).join("");
+      block.innerHTML += `<div class="dir">${d.dest}</div><div class="rows">${rows}</div>`;
+    });
+  }else{
+    block.innerHTML += placeholderDirHTML("Direction 1","Pas de passage prévu");
+    block.innerHTML += placeholderDirHTML("Direction 2","Pas de passage prévu");
+  }
+  cont.appendChild(block);
+
+  await renderTrafficStripForLines(["C02251"], "hippo77-traffic");
+  console.debug("HIPPO 77 ✅", g.directions?.length || 0);
+}
+
+// ==== Breuil 77 & 201 ====
+async function renderBreuil77201(){
+  await renderBreuilLine("77","breuil77-body");
+  await renderBreuilLine("201","breuil201-body");
+  await renderTrafficStripForLines(["C02251","C01219"], "breuil-traffic");
+}
+async function renderBreuilLine(code, nodeId){
+  const cont=document.getElementById(nodeId); cont.innerHTML="";
+  const data=await fetchJSON(PRIM_STOP(STOP_IDS.BREUIL), 12000);
+  const visits=parseStop(data);
+  const grouped=groupByLineAndDirection(visits,3);
+  let target=null;
+  for(const g of grouped){
+    const m=await metaById(g.lineId);
+    if((m.code||"").toUpperCase()===code){ target={ m, g }; break; }
+  }
+  const meta = target?.m || await metaByCode(code);
+  const g = target?.g || { directions:[] };
+
+  const block=document.createElement("div"); block.className="line-block";
+  block.innerHTML=`<div class="line-header"><span class="pill" style="background:${meta.color};color:${meta.text}">${meta.code}</span><div class="name">Bus ${code}</div></div>`;
+
+  if(g.directions.length){
+    g.directions.slice(0,2).forEach(d=>{
+      const rows=d.list.slice(0,3).map(cellHTML).join("");
+      block.innerHTML += `<div class="dir">${d.dest}</div><div class="rows">${rows}</div>`;
+    });
+  }else{
+    block.innerHTML += placeholderDirHTML("Direction 1","Pas de passage prévu");
+    block.innerHTML += placeholderDirHTML("Direction 2","Pas de passage prévu");
+  }
+  cont.appendChild(block);
+  console.debug("BREUIL", code, "✅", g.directions?.length || 0);
+}
+
+// ==== Joinville — Tous bus (hors RER) ====
+const JOINVILLE_BUS_CODES = ["101","108","110","201","281","317","393","77","520","N33","N34","N35"];
+const JOINVILLE_SPLIT = Math.ceil(JOINVILLE_BUS_CODES.length/2);
+async function renderJoinvilleAll(){
+  const data=await fetchJSON(PRIM_STOP(STOP_IDS.JOINVILLE), 12000);
+  const visits=parseStop(data).filter(v=>v.lineId);
+
+  const grouped=groupByLineAndDirection(visits,3);
+  const mapByCode=new Map();
+  for(const g of grouped){
+    const m=await metaById(g.lineId);
+    const code=(m.code||"").toUpperCase();
+    if(code==="A") continue;
+    mapByCode.set(code,{ meta:m, directions:g.directions });
+  }
+
+  const left=document.getElementById("joinville-col-left");
+  const right=document.getElementById("joinville-col-right");
+  left.innerHTML=""; right.innerHTML="";
+
+  const renderLine = async (code, parent)=>{
+    const meta = mapByCode.get(code)?.meta || await metaByCode(code);
+    const dirs = mapByCode.get(code)?.directions || [];
+    const block=document.createElement("div"); block.className="line-block";
+    block.innerHTML=`<div class="line-header"><span class="pill" style="background:${meta.color};color:${meta.text}">${meta.code}</span><div class="name">Bus ${meta.code}</div></div>`;
+    if(dirs.length){
+      const dToShow = dirs.slice(0,2);
+      dToShow.forEach(d=>{
+        const rows=d.list.slice(0,3).map(cellHTML).join("");
+        block.innerHTML += `<div class="dir">${d.dest}</div><div class="rows">${rows}</div>`;
+      });
+      if(dirs.length===1) block.innerHTML += placeholderDirHTML("Autre direction","Pas de passage prévu");
+    }else{
+      block.innerHTML += placeholderDirHTML("Direction 1","Pas de passage prévu");
+      block.innerHTML += placeholderDirHTML("Direction 2","Pas de passage prévu");
+    }
+    parent.appendChild(block);
+  };
+
+  const leftList = JOINVILLE_BUS_CODES.slice(0, JOINVILLE_SPLIT);
+  const rightList = JOINVILLE_BUS_CODES.slice(JOINVILLE_SPLIT);
+  for(const code of leftList) await renderLine(code, left);
+  for(const code of rightList) await renderLine(code, right);
+  console.debug("JOINVILLE ALL ✅ rendu", mapByCode.size, "lignes");
+}
+
+// ==== Routier ====
+function distanceKm(lat1, lon1, lat2, lon2){
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+async function refreshRoad(){
+  const cont=document.getElementById("road-list"); const fb=document.getElementById("road-fallback");
+  cont.textContent="Chargement…";
+  try{
+    let used=false;
+    const syt=await fetchJSON(SYTADIN_JSON, 12000);
+    if(syt && (Array.isArray(syt) || syt.records)){
+      const entries=Array.isArray(syt)? syt : (syt.records||[]).map(r=>r.fields||r);
+      const KEYS=["Périph","A4","A86","Vincennes","Joinville","Charenton"];
+      const filtered=entries.filter(e=>e.libelle && KEYS.some(k=>new RegExp(k,"i").test(e.libelle))).slice(0,8);
+      cont.innerHTML = filtered.map(e=>`<div class="course"><div class="badge-time">${e.horaire||""}</div><div class="course-name">${e.libelle||""}</div><div class="course-meta">${e.commentaire||e.indice_traffic||""}</div></div>`).join("");
+      used = filtered.length>0;
+      console.debug("SYTADIN ✅", filtered.length, "événements");
+    }
+    if(!used){
+      const par=await fetchJSON(PARIS_ROAD_FALLBACK, 12000);
+      const results=par?.results||[];
+      const center={lat:48.825, lon:2.45};
+      const seen=new Set(); const rows=[];
+      for(const rec of results){
+        const name=(rec.libelle||"").replace(/_/g," ").trim();
+        if(!name || seen.has(name)) continue;
+        const point=rec.geo_point_2d;
+        if(point){
+          const d=distanceKm(center.lat, center.lon, point.lat, point.lon);
+          if(d>5) continue;
+        }
+        seen.add(name);
+        rows.push({name,status:rec.etat_trafic||"—", time:rec.t_1h?new Date(rec.t_1h).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}):"--:--"});
+        if(rows.length>=6) break;
+      }
+      cont.innerHTML = rows.length ? rows.map(r=>`<div class="course"><div class="badge-time">${r.time}</div><div class="course-name">${r.name}</div><div class="course-meta">${r.status}</div></div>`).join("") : `<div class="small">Pas de perturbation détectée.</div>`;
+      if(fb) fb.textContent = "Source: SYTADIN / Ville de Paris (fallback).";
+      console.debug("PARIS ROUTIER ✅", rows.length, "lignes");
+    }
+  }catch(e){ cont.innerHTML=`<div class='small'>Données routières indisponibles</div>`; console.warn("ROUTIER ❌", e.message); }
+}
+
+// ==== Courses (1/jour + décompte) ====
+function fmtCountdown(ts){
+  const diff=ts-Date.now(); if(diff<=0) return "0:00:00";
+  const s=Math.floor(diff/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60), ss=s%60;
+  return `${h}:${String(m).padStart(2,"0")}:${String(ss).padStart(2,"0")}`;
+}
+function renderCoursesList(nodeId, list){
+  const cont=document.getElementById(nodeId); cont.innerHTML="";
+  if(!list.length){ cont.innerHTML=`<div class='small'>Aucune course prévue aujourd’hui.</div>`; return; }
+  list.forEach(c=>{
+    const row=document.createElement("div"); row.className="course";
+    row.innerHTML=`<div class='badge-time'>${c.heure}</div><div><div class='course-name'>${c.ref?c.ref+' – ':''}${c.nom}</div><div class='course-meta'>${c.distance} m • ${c.discipline}</div></div><div class='countdown' data-ts='${c.ts}'>${fmtCountdown(c.ts)}</div>`;
+    cont.appendChild(row);
+  });
+}
+function tickCountdowns(){ document.querySelectorAll(".countdown").forEach(el=>{ const ts=Number(el.getAttribute("data-ts")||0); el.textContent=fmtCountdown(ts); }); }
+function loadCoursesCache(){ try{ const raw=localStorage.getItem("courses-cache"); if(!raw) return; const p=JSON.parse(raw); if(p?.date===todayISO()) dailyCoursesCache=p; }catch{} }
+async function fetchDailyCourses(){
+  const key=todayISO(); if(dailyCoursesCache.date===key && dailyCoursesCache.vin.length) return;
+  const d=new Date(); const yyyymmdd=`${String(d.getDate()).padStart(2,"0")}${String(d.getMonth()+1).padStart(2,"0")}${d.getFullYear()}`;
+  const data=await fetchJSON(PMU_DAILY(yyyymmdd), 15000);
+  const vin=[], eng=[];
+  if(data?.programme?.reunions){
+    data.programme.reunions.forEach(r=>{
+      const code=r.hippodrome?.code||""; const isVin=code==="VIN", isEng=code==="ENG";
+      r.courses?.forEach(c=>{
+        const start=new Date(c.heureDepart); if(Number.isNaN(start.getTime())) return;
+        const obj={ ts:start.getTime(), heure:start.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}), nom:c.libelle, distance:c.distance||0, discipline:c.discipline||"", ref:r.numOfficiel&&c.numOrdre?`R${r.numOfficiel}C${c.numOrdre}`:"" };
+        if(isVin) vin.push(obj); if(isEng) eng.push(obj);
+      });
+    });
+  }
+  vin.sort((a,b)=>a.ts-b.ts); eng.sort((a,b)=>a.ts-b.ts);
+  dailyCoursesCache={ vin, eng, date:key };
+  try{ localStorage.setItem("courses-cache", JSON.stringify(dailyCoursesCache)); }catch{}
+  console.debug("COURSES ✅", "VIN", vin.length, "ENG", eng.length);
+}
+async function refreshCoursesOncePerDayAndRender(){
+  loadCoursesCache();
+  await fetchDailyCourses();
+  renderCoursesList("courses-vincennes", dailyCoursesCache.vin);
+  renderCoursesList("courses-enghien", dailyCoursesCache.eng);
+}
+
+// ==== Ticker ====
+function updateTicker(){
+  const slot=document.getElementById("ticker-slot"); if(!slot) return;
+  const clock=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  const entries=[`${clock} • ${tickerData.timeWeather}`, tickerData.saint, tickerData.traffic].filter(Boolean);
+  slot.textContent = entries.length ? entries[tickerIndex % entries.length] : "Chargement…";
+  tickerIndex++;
+}
+
+// ==== Orchestration ====
+async function renderLine1(){
+  await Promise.all([ renderRerA(), renderHippo77(), renderBreuil77201() ]);
+}
+async function renderLine2(){
+  await renderJoinvilleAll();
+}
+
+function startLoops(){
+  setInterval(setClock, 1000);
+  setInterval(()=>{ updateTicker(); setLastUpdate(); }, 10000);
+
+  setInterval(refreshVelib, 30*1000);
+  setInterval(async ()=>{ await Promise.all([ renderLine1(), renderLine2() ]); }, 60*1000);
+
+  setInterval(refreshWeather, 30*60*1000);
+  setInterval(refreshSaint,   24*60*60*1000);
+  setInterval(refreshRoad,     5*60*1000);
+  setInterval(refreshNews,    15*60*1000);
+  setInterval(refreshTrafficBanner, 5*60*1000);
+  setInterval(tickCountdowns, 1000);
+}
+
+(async function init(){
+  console.debug("INIT ▶");
+  setClock();
+  await Promise.allSettled([
+    refreshWeather(),
+    refreshSaint(),
+    refreshNews(),
+    refreshVelib(),
+    refreshRoad(),
+    refreshTrafficBanner(),
+    renderLine1(),
+    renderLine2(),
+    refreshCoursesOncePerDayAndRender()
+  ]);
+  updateTicker();
+  setLastUpdate();
+  startLoops();
+  console.debug("INIT ✅ prêt");
+})();
