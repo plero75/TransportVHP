@@ -2,8 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Dashboard IDFM – Hippodrome Paris-Vincennes</title>
+  <title>Dashboard IDFM – Hippodrome Paris-Vincennes (debug)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -11,7 +12,7 @@
   <header id="header-main" class="topbar">
     <div class="brand">
       <div class="brand-title">Hippodrome Paris-Vincennes</div>
-      <div class="brand-sub">Tableau d’information temps réel</div>
+      <div class="brand-sub">Tableau d’information temps réel (debug)</div>
     </div>
     <div class="meta">
       <div class="meta-row">
@@ -37,7 +38,6 @@
     <!-- Colonne 1 : RER A -->
     <article class="panel">
       <h2>RER A — Joinville-le-Pont</h2>
-      <div id="rer-alert" class="alert-line-container"></div>
       <div id="rerA-body" class="station"></div>
       <div id="rer-traffic" class="traffic-sub"></div>
     </article>
@@ -45,7 +45,6 @@
     <!-- Colonne 2 : Hippodrome – Bus 77 -->
     <article class="panel">
       <h2>Hippodrome de Vincennes — Bus 77</h2>
-      <div id="hippo77-alert" class="alert-line-container"></div>
       <div id="hippo77-body" class="station"></div>
       <div id="hippo77-traffic" class="traffic-sub"></div>
     </article>
@@ -53,10 +52,8 @@
     <!-- Colonne 3 : École du Breuil — 77 & 201 -->
     <article class="panel">
       <h2>École du Breuil — Bus 77 & 201</h2>
-      <div id="breuil77-alert" class="alert-line-container"></div>
       <div id="breuil77-body" class="station"></div>
-      <div id="breuil201-alert" class="alert-line-container sep"></div>
-      <div id="breuil201-body" class="station"></div>
+      <div id="breuil201-body" class="station sep"></div>
       <div id="breuil-traffic" class="traffic-sub"></div>
     </article>
   </section>
@@ -93,10 +90,11 @@
   <!-- ===== Trafic routier ===== -->
   <section class="grid grid-2">
     <article class="panel">
-      <h2>Trafic routier — Carte</h2>
+      <h2>Trafic routier — Portail Bison Futé</h2>
       <div class="map-wrap">
+        <!-- URL corrigée (ancienne /dans-ma-region.html 404) -->
         <iframe id="sytadin-map" title="Carte trafic"
-                src="https://www.bison-fute.gouv.fr/dans-ma-region.html"
+                src="https://www.bison-fute.gouv.fr/les-previsions.html"
                 loading="lazy" referrerpolicy="no-referrer"></iframe>
       </div>
       <div id="road-fallback" class="muted small">
