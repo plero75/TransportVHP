@@ -1,5 +1,4 @@
 :root{
-  /* Thème IDFM */
   --idfm-blue:#1b2a6e;
   --page-bg:#f2f4fb;
   --panel-bg:#ffffff;
@@ -8,7 +7,6 @@
   --muted:#6b7280;
   --strip:#f6f8ff;
 
-  /* Couleurs de lignes (fallback si référentiel absent) */
   --rer-a:#e41e26;
   --bus-77:#0066cc;
   --bus-201:#00aa55;
@@ -30,7 +28,7 @@ body{
   background:var(--page-bg);
   color:var(--text);
   font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-  overflow:hidden; /* no scroll */
+  overflow:hidden;
 }
 
 /* Header */
@@ -69,6 +67,7 @@ body{
 .grid{display:grid;gap:12px;margin:12px 16px}
 .grid-1{grid-template-columns:1fr}
 .grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
 .panel{
   background:var(--panel-bg);
   border:1px solid var(--panel-border);
@@ -85,46 +84,35 @@ body{
   padding-bottom:6px
 }
 
-/* Boards */
-.board{font-size:.95rem}
-.board-2cols{column-count:2;column-gap:18px}
-.row{
-  display:grid;
-  grid-template-columns:auto 1fr auto;
-  gap:10px;
-  align-items:flex-start;
-  border-bottom:1px dashed var(--panel-border);
-  padding:8px 0;
-  break-inside:avoid
+/* Stations / lines */
+.station .line-block{
+  border:1px solid var(--panel-border);border-radius:10px;
+  padding:8px 10px;margin-bottom:8px;background:#fafbff
 }
-.row:last-child{border-bottom:none}
-.line-pill{
+.line-header{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+.pill{
   display:inline-flex;align-items:center;justify-content:center;
   min-width:38px;height:22px;padding:0 10px;border-radius:999px;
-  background:#2450a4;color:#fff;font-weight:700;font-size:.9rem
+  background:#2450a4;color:#fff;font-weight:800;font-size:.9rem
 }
-.rer-a{background:var(--rer-a)}
-.dest{font-weight:700}
-.times{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.pill.rer-a{background:var(--rer-a)}
+.name{font-weight:700}
 
-/* Time cells */
-.time-wrap{display:flex;flex-direction:column;align-items:center;min-width:64px}
-.time-box{
+.dir{font-weight:600;color:#0f2450;margin:4px 0 6px}
+.rows{display:flex;gap:10px;flex-wrap:wrap}
+.time{display:flex;flex-direction:column;align-items:center;min-width:64px}
+.box{
   min-width:64px;text-align:center;padding:6px 8px;border-radius:10px;
   border:1px solid var(--panel-border);background:#f9fafb;
   font-weight:800;font-size:1.06rem
 }
-.time-box.imminent{background:#e8f5e9;border-color:#cfe9d4}
-.time-box.cancelled{background:#f2f3f5;border-color:#cfd3da;color:#6b1212;font-weight:700}
-.time-box.delay{background:var(--warn-bg);border-color:#f3e2a6}
-.time-sub{font-size:.78rem;line-height:1.2;margin-top:2px;color:#374151}
-.info-sub{font-size:.78rem;line-height:1.2;margin-top:2px}
-.info-sub.ok{color:#2e7d32}
-.info-sub.delay{color:#9b6c00}
-.info-sub.cancelled{color:#b31b1b;font-weight:700}
-.info-sub.service{color:#5b6170;font-style:italic}
+.box.imminent{background:#e8f5e9;border-color:#cfe9d4}
+.box.delay{background:#fff3cd;border-color:#ffe49a}
+.box.cancelled{background:#f2f3f5;border-color:#cfd3da;color:#7a1b1b}
+.sub{font-size:.78rem;line-height:1.2;margin-top:2px;color:#374151}
+.sep{margin-top:10px}
 
-/* Alert strips per line */
+/* Traffic per block */
 .alert-line-container{margin-bottom:8px}
 .alert-line{
   display:flex;gap:10px;align-items:center;
@@ -134,6 +122,10 @@ body{
 .alert-line.ended,.alert-line.interrupted{background:var(--alert-bg);border-left-color:#c71d1d;color:#6b1212}
 .alert-line.moved{background:var(--warn-bg);border-left-color:#e0b100;color:#5b4a00}
 .alert-line.info{background:#eef3ff;border-left-color:#5c7ae8;color:#11225f}
+
+.traffic-sub{margin-top:6px;font-size:.9rem}
+.traffic-sub.ok{color:#2e7d32}
+.traffic-sub.alert{color:#8b1c1c}
 
 /* Velib */
 .velib-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
@@ -152,6 +144,7 @@ body{
 .news-desc{color:#444}
 
 /* Courses */
+.board{font-size:.95rem}
 .course{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border-bottom:1px dashed var(--panel-border);padding:8px 0}
 .course:last-child{border-bottom:none}
 .badge-time{background:#eef2fa;border:1px solid #cfd7ea;border-radius:6px;padding:4px 8px;font-weight:700;min-width:56px;text-align:center}
@@ -159,10 +152,10 @@ body{
 .course-meta{color:#555;font-size:.9rem}
 .countdown{font-variant-numeric:tabular-nums;font-weight:700}
 
-/* Ticker */
+/* Footer ticker */
 .ticker{text-align:center;padding:10px;font-size:.95rem;background:#fafafa;border-top:1px solid var(--panel-border)}
 
-/* 1080p safe */
+/* Responsive fallback */
 @media (max-width:1440px){
-  .board-2cols{column-count:1}
+  .grid-3{grid-template-columns:1fr 1fr}
 }
