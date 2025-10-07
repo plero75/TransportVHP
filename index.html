@@ -2,101 +2,57 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; img-src * data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src *;">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard Transports Vincennes — LIVE</title>
+  <title>Dashboard Transports Vincennes – LIVE</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- HEADER -->
   <header class="appbar">
     <div class="left">
       <div class="brand">Hippodrome</div>
       <h1>Dashboard Transports Vincennes</h1>
     </div>
     <div class="right">
-      <div class="wx"><span id="weather-temp">--°C</span> <span id="weather-desc"></span></div>
-      <div class="saint" id="saint">Fête du jour</div>
-      <div class="datetime"><span id="dateLabel">--</span> <span id="clock">--:--:--</span></div>
+      <div id="weather">🌤️</div>
+      <div id="saint">Fête du jour</div>
+      <div id="clock">--:--:--</div>
     </div>
   </header>
 
-  <!-- BANNER -->
   <div id="banner" class="banner ok">Trafic normal sur les lignes suivies.</div>
 
-  <!-- LIGNE 1 – 3 colonnes -->
+  <!-- LIGNE 1 -->
   <section class="row row-3">
-    <section class="card">
-      <h2><strong>Joinville-le-Pont — RER A</strong></h2>
-      <div id="rerA-body"></div>
-    </section>
-
-    <section class="card">
-      <h2><strong>Hippodrome de Vincennes — Bus 77</strong></h2>
-      <div id="hippo-body"></div>
-    </section>
-
-    <section class="card">
-      <h2><strong>École du Breuil — Bus 201 / 77</strong></h2>
-      <div id="breuil-body"></div>
-    </section>
+    <section class="card"><h2>RER A – Joinville-le-Pont</h2><div id="rerA-body"></div></section>
+    <section class="card"><h2>Bus 77 – Hippodrome de Vincennes</h2><div id="hippo-body"></div></section>
+    <section class="card"><h2>Bus 201 / 77 – École du Breuil</h2><div id="breuil-body"></div></section>
   </section>
 
-  <!-- LIGNE 2 – 2 colonnes (tous les bus Joinville) -->
-  <section class="row row-2">
-    <section class="card">
-      <h2><strong>Joinville-le-Pont — Tous les bus (hors RER)</strong></h2>
-      <div class="two-cols">
+  <!-- LIGNE 2 -->
+  <section class="row row-1">
+    <section class="card fullwidth">
+      <h2>Joinville-le-Pont – Tous les bus (hors RER)</h2>
+      <div class="joinville-grid">
         <div id="joinville-left"></div>
         <div id="joinville-right"></div>
       </div>
     </section>
-    <section class="card">
-      <h2><strong>Trafic routier — secteur Vincennes / Joinville</strong></h2>
-      <div id="road-list" class="road-list">Chargement…</div>
-    </section>
   </section>
 
-  <!-- LIGNE 3 – Vélib -->
+  <!-- LIGNE 3 : carte Sytadin -->
   <section class="row row-1">
-    <section class="card">
-      <h2><strong>Vélib</strong></h2>
-      <div class="velib-grid">
-        <div class="velib-station">
-          <div class="velib-title">Vincennes</div>
-          <div class="velib-stats" id="velib-vincennes">Chargement…</div>
-        </div>
-        <div class="velib-station">
-          <div class="velib-title">École du Breuil</div>
-          <div class="velib-stats" id="velib-breuil">Chargement…</div>
-        </div>
+    <section class="card fullwidth">
+      <h2>🚦 Trafic routier — Sytadin</h2>
+      <div class="map-container">
+        <img id="sytadin-map"
+             src="https://www.sytadin.fr/sys/barometre_courant_carte_centre.gif"
+             alt="Carte trafic Sytadin"
+             class="sytadin-img" />
       </div>
     </section>
   </section>
 
-  <!-- LIGNE 4 – Flash News -->
-  <section class="row row-1">
-    <section class="card">
-      <h2><strong>France Info — Flash</strong></h2>
-      <div id="news-carousel" class="news-carousel">Chargement…</div>
-    </section>
-  </section>
-
-  <!-- LIGNE 5 – Courses (2 colonnes) -->
-  <section class="row row-2">
-    <section class="card">
-      <h2><strong>Prochaines courses — Vincennes</strong></h2>
-      <div id="courses-vincennes" class="courses">Chargement…</div>
-    </section>
-    <section class="card">
-      <h2><strong>Prochaines courses — Enghien</strong></h2>
-      <div id="courses-enghien" class="courses">Chargement…</div>
-    </section>
-  </section>
-
   <footer class="footer">
-    <div>© 2025 • PRIM IDFM, Open-Meteo, Nominis, Opendata Paris, PMU</div>
-    <div>Dernière mise à jour : <span id="lastUpdate">--:--:--</span></div>
+    © 2025 PRIM IDFM – Open Meteo – Sytadin – PMU – Nominis
   </footer>
 
   <script src="app.js"></script>
