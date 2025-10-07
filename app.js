@@ -8,7 +8,7 @@ const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.835&long
 const SAINT_URL   = PROXY + encodeURIComponent("https://nominis.cef.fr/json/nominis.php");
 const RSS_URL     = PROXY + encodeURIComponent("https://www.francetvinfo.fr/titres.rss");
 
-// PRIM stops
+// PRIM stops (StopArea)
 const STOP_IDS = {
   RER_A:      "STIF:StopArea:SP:43135:",
   JOINVILLE:  "STIF:StopArea:SP:70640:",
@@ -17,22 +17,35 @@ const STOP_IDS = {
 };
 
 // Joinville — affichage forcé (hors RER)
-const JOINVILLE_BUS_CODES = ["101","106","108","110","112","201","281","317","393","520","77","N33"];
+const JOINVILLE_BUS_CODES = ["101","106","108","110","112","201","281","317","393","520","77","N33","N35"];
 
-// Velib stations (Paris opendata)
+// Velib stations
 const VELIB = { VINCENNES: "12163", BREUIL: "12128" };
 
 // PMU (courses)
 const PMU_DAY_URL = (dateStr) => PROXY + encodeURIComponent(`https://offline.turfinfo.api.pmu.fr/rest/client/7/programme/${dateStr}`);
 
-// Sytadin / Paris (fallback si indispo)
+// Paris road fallback
 const PARIS_ROAD = PROXY + encodeURIComponent("https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/comptages-routiers-permanents/records?limit=60&order_by=-t_1h");
 
-// ODS referentiel
+// Referentiel ODS + PRIM helpers
 const ODS_BY_ID = (id)   => PROXY + encodeURIComponent(`https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/referentiel-des-lignes/records?where=id_line%3D%22${id}%22&limit=1`);
 const ODS_BY_CD = (cd)   => PROXY + encodeURIComponent(`https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/referentiel-des-lignes/records?where=shortname_line%3D%22${encodeURIComponent(cd)}%22&limit=1`);
 const PRIM_STOP = (ref)  => PROXY + encodeURIComponent(`https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${ref}`);
 const PRIM_GM   = (idLn) => PROXY + encodeURIComponent(`https://prim.iledefrance-mobilites.fr/marketplace/general-message?LineRef=STIF:Line::${idLn}:`);
+
+// Navitia (GTFS-like) stop_schedules (fallback horaires théoriques)
+const NAVITIA_LINE = (lineId) => `line:IDFM:${lineId}`;
+const NAVITIA_STOPAREA = (stopId) => {
+  // STOP_IDS: "STIF:StopArea:SP:43135:" -> 43135
+  const m = /SP:(\d+):/.exec(stopId);
+  const num = m ? m[1] : "";
+  return `stop_area:IDFM:${num}`;
+};
+const NAVI_SCHEDULE = (lineId, stopId, ymdhm) =>
+  PROXY + encodeURIComponent(
+    `https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia/coverage/fr-idf/lines/${encodeURIComponent(NAVITIA_LINE(lineId))}/stop_areas/${encodeURIComponent(NAVITIA_STOPAREA(stopId))}/stop_schedules?from_datetime=${ymdhm}`
+  );
 
 // =====================
 // Utils
@@ -56,6 +69,12 @@ async function fetchText(url, timeout=12000){
 }
 function minutesFromISO(iso){ if(!iso) return null; return Math.max(0, Math.round((new Date(iso)-Date.now())/60000)); }
 function hhmm(iso){ if(!iso) return "—:—"; const d=new Date(iso); return d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); }
+function ymdhm(d){ // 20251008T012000
+  const pad = n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+}
+function startOfDay(d){const x=new Date(d); x.setHours(0,0,0,0); return x;}
+function addDays(d,n){const x=new Date(d); x.setDate(x.getDate()+n); return x;}
 function setLastUpdate(){ const el=document.getElementById("lastUpdate"); if(el) el.textContent=new Date().toLocaleTimeString("fr-FR"); }
 
 // =====================
@@ -75,8 +94,9 @@ async function refreshWeather(){
 }
 async function refreshSaint(){
   const d=await fetchJSON(SAINT_URL, 10000);
-  const name=d?.response?.prenoms||"";
-  document.getElementById("saint").textContent = name? `Fête : ${name}` : "Fête du jour";
+  const value = d?.response?.prenom || d?.response?.prenoms || "";
+  const name = Array.isArray(value) ? value.join(", ") : String(value || "");
+  document.getElementById("saint").textContent = name ? `Fête : ${name}` : "Fête du jour";
 }
 
 // =====================
@@ -117,7 +137,7 @@ function groupByLineAndDir(visits, perDir=3){
 // Couleurs IDFM (référentiel + fallback)
 // =====================
 const metaCacheId=new Map(), metaCacheCode=new Map();
-const FALLBACK={ "A":"#e41e26","77":"#0066cc","201":"#00aa55","101":"#f4b400","106":"#ef7d00","108":"#d94d8a","110":"#9b59b6","112":"#ff7f50","281":"#d2a000","317":"#2e86c1","393":"#16a085","520":"#7f8c8d","N33":"#2b2e83" };
+const FALLBACK={ "A":"#e41e26","77":"#0066cc","201":"#00aa55","101":"#f4b400","106":"#ef7d00","108":"#d94d8a","110":"#9b59b6","112":"#ff7f50","281":"#d2a000","317":"#2e86c1","393":"#16a085","520":"#7f8c8d","N33":"#2b2e83","N35":"#1d2764" };
 
 async function metaById(lineId){
   if(!lineId) return { code:"", color:"#2450a4", text:"#fff" };
@@ -140,6 +160,48 @@ async function metaByCode(code){
     m={ code:e.shortname_line||code, color:e.colourweb_hexa||FALLBACK[code]||"#2450a4", text:e.textcolourweb_hexa||"#fff" };
   }
   metaCacheCode.set(code,m); return m;
+}
+
+// =====================
+// Fallback GTFS (Navitia stop_schedules)
+// =====================
+// Renvoie {status: "first"|"ended"|"next", timeISO: "..."} ou null si inconnu
+async function gtfsFallback(lineId, stopAreaId){
+  try{
+    const now=new Date();
+    // 1) prochain départ à partir de maintenant
+    const n1 = await fetchJSON(NAVI_SCHEDULE(lineId, stopAreaId, ymdhm(now)), 12000);
+    const next = n1?.stop_schedules?.[0]?.date_times?.[0]?.date_time; // YYYYMMDDThhmmss
+    if(next){
+      const iso = `${next.slice(0,4)}-${next.slice(4,6)}-${next.slice(6,8)}T${next.slice(9,11)}:${next.slice(11,13)}:${next.slice(13,15)}`;
+      return { status:"next", timeISO: iso };
+    }
+    // 2) premier départ du jour
+    const sod = startOfDay(now);
+    const n2 = await fetchJSON(NAVI_SCHEDULE(lineId, stopAreaId, ymdhm(sod)), 12000);
+    const firstToday = n2?.stop_schedules?.[0]?.date_times?.[0]?.date_time;
+    if(firstToday){
+      const isoFirst = `${firstToday.slice(0,4)}-${firstToday.slice(4,6)}-${firstToday.slice(6,8)}T${firstToday.slice(9,11)}:${firstToday.slice(11,13)}:${firstToday.slice(13,15)}`;
+      if(new Date(isoFirst) > now) return { status:"first", timeISO: isoFirst };
+    }
+    // 3) rien aujourd'hui -> prochain jour
+    const tomorrow = startOfDay(addDays(now,1));
+    const n3 = await fetchJSON(NAVI_SCHEDULE(lineId, stopAreaId, ymdhm(tomorrow)), 12000);
+    const firstTom = n3?.stop_schedules?.[0]?.date_times?.[0]?.date_time;
+    if(firstTom){
+      const isoTom = `${firstTom.slice(0,4)}-${firstTom.slice(4,6)}-${firstTom.slice(6,8)}T${firstTom.slice(9,11)}:${firstTom.slice(11,13)}:${firstTom.slice(13,15)}`;
+      return { status:"ended", timeISO: isoTom };
+    }
+  }catch(e){ console.warn("gtfsFallback", e.message); }
+  return null;
+}
+
+function gtfsNoteHTML(fb){
+  if(!fb) return `<div class="note gtfs">Données théoriques indisponibles</div>`;
+  if(fb.status==="first")  return `<div class="note gtfs">Premier service à ${hhmm(fb.timeISO)}</div>`;
+  if(fb.status==="ended")  return `<div class="note gtfs">Service terminé — prochain départ ${hhmm(fb.timeISO)}</div>`;
+  if(fb.status==="next")   return `<div class="note gtfs">Prochain départ à ${hhmm(fb.timeISO)}</div>`;
+  return `<div class="note gtfs">Information indisponible</div>`;
 }
 
 // =====================
@@ -169,18 +231,19 @@ function directionsHTML(dirs){
   }
   return html;
 }
-function lineBlock(meta, dirs, title=""){
+function lineBlock(meta, dirs, extraNoteHTML=""){
   return `<div class="block">
-    <div class="title"><span class="pill" style="background:${meta.color};color:${meta.text}">${meta.code}</span><div class="name">${title}</div></div>
+    <div class="title"><span class="pill" style="background:${meta.color};color:${meta.text}">${meta.code}</span><div class="name"></div></div>
     ${directionsHTML(dirs)}
+    ${extraNoteHTML||""}
   </div>`;
 }
 
 // =====================
 // Sections TRANSPORTS
 // =====================
-async function renderRerA(intoId){
-  const node=document.getElementById(intoId); if(!node) return; node.innerHTML="";
+async function renderRerA(){
+  const node=document.getElementById("rerA-body"); if(!node) return; node.innerHTML="";
   const raw=await fetchJSON(PRIM_STOP(STOP_IDS.RER_A), 12000);
   const visits=parseStop(raw);
 
@@ -191,10 +254,18 @@ async function renderRerA(intoId){
   const vBoissy= visits.filter(v=>rxBoissy.test(v.dest)).slice(0,3);
   const meta={code:"RER A", color:"#e41e26", text:"#fff"};
 
+  let extra="";
+  if(!vParis.length && !vBoissy.length){
+    // GTFS fallback sur la ligne A (id "C01742")
+    const fb = await gtfsFallback("C01742", STOP_IDS.RER_A);
+    extra = gtfsNoteHTML(fb);
+  }
   const wrap=document.createElement("div");
-  wrap.innerHTML=lineBlock(meta,[{dest:"Vers Paris", list:vParis},{dest:"Vers Boissy", list:vBoissy}]);
+  wrap.innerHTML=lineBlock(meta,[{dest:"Vers Paris", list:vParis},{dest:"Vers Boissy", list:vBoissy}], extra);
   node.appendChild(wrap.firstChild);
 }
+
+// Hippodrome — Bus 77 (2 sens + GTFS si vide)
 async function renderHippo77(){
   const node=document.getElementById("hippo-body"); if(!node) return; node.innerHTML="";
   const raw=await fetchJSON(PRIM_STOP(STOP_IDS.HIPPODROME), 12000);
@@ -205,26 +276,41 @@ async function renderHippo77(){
   for(const g of grouped){ const m=await metaById(g.lineId); if((m.code||"").toUpperCase()==="77"){ target={m,dirs:g.dirs}; break; } }
   const meta = (target?.m) || await metaByCode("77");
   const dirs = (target?.dirs) || [];
-  const wrap=document.createElement("div"); wrap.innerHTML=lineBlock(meta, dirs);
+
+  let extra="";
+  if(dirs.every(d=>!d.list.length)){
+    const fb = await gtfsFallback("C02251", STOP_IDS.HIPPODROME); // 77
+    extra = gtfsNoteHTML(fb);
+  }
+  const wrap=document.createElement("div"); wrap.innerHTML=lineBlock(meta, dirs, extra);
   node.appendChild(wrap.firstChild);
 }
+
+// École du Breuil — Bus 201 et 77 (2 sens + GTFS si vide)
 async function renderBreuil(){
   const node=document.getElementById("breuil-body"); if(!node) return; node.innerHTML="";
   const raw=await fetchJSON(PRIM_STOP(STOP_IDS.BREUIL), 12000);
   const visits=parseStop(raw);
   const grouped=groupByLineAndDir(visits,3);
 
-  async function renderOne(code){
+  async function renderOne(code, idfmId){
     let found=null;
     for(const g of grouped){ const m=await metaById(g.lineId); if((m.code||"").toUpperCase()===code){ found={m,dirs:g.dirs}; break; } }
     const meta = (found?.m) || await metaByCode(code);
     const dirs = (found?.dirs) || [];
-    const wrap=document.createElement("div"); wrap.innerHTML=lineBlock(meta, dirs);
+    let extra="";
+    if(dirs.every(d=>!d.list.length)){
+      const fb = await gtfsFallback(idfmId, STOP_IDS.BREUIL);
+      extra = gtfsNoteHTML(fb);
+    }
+    const wrap=document.createElement("div"); wrap.innerHTML=lineBlock(meta, dirs, extra);
     node.appendChild(wrap.firstChild);
   }
-  await renderOne("201");
-  await renderOne("77");
+  await renderOne("201","C01219");
+  await renderOne("77","C02251");
 }
+
+// Joinville — Tous les bus (2 colonnes) — affichage forcé + GTFS si vide
 async function renderJoinvilleAll(){
   const L= document.getElementById("joinville-left"),
         R= document.getElementById("joinville-right");
@@ -235,7 +321,7 @@ async function renderJoinvilleAll(){
   const visits=parseStop(raw).filter(v=>v.lineId);
   const grouped=groupByLineAndDir(visits,3);
   const byCode=new Map();
-  for(const g of grouped){ const m=await metaById(g.lineId); byCode.set((m.code||"").toUpperCase(), {meta:m, dirs:g.dirs}); }
+  for(const g of grouped){ const m=await metaById(g.lineId); byCode.set((m.code||"").toUpperCase(), {meta:m, dirs:g.dirs, id:g.lineId}); }
 
   const half=Math.ceil(JOINVILLE_BUS_CODES.length/2);
   const leftList=JOINVILLE_BUS_CODES.slice(0,half);
@@ -243,8 +329,18 @@ async function renderJoinvilleAll(){
 
   async function renderList(list,parent){
     for(const code of list){
-      const info = byCode.get(code) || { meta: await metaByCode(code), dirs: [] };
-      const wrap=document.createElement("div"); wrap.innerHTML=lineBlock(info.meta, info.dirs);
+      const info = byCode.get(code) || { meta: await metaByCode(code), dirs: [], id: null };
+      let extra="";
+      if(info.dirs.every(d=>!d.list.length)){
+        // map code -> idfm id (connus)
+        const idfmMap={ "77":"C02251","201":"C01219","101":"C01101","106":"C01135","108":"C01137","110":"C01139","112":"C01141","281":"C01429","317":"C01751","393":"C01957","520":"C02873","N33":"C03033","N35":"C03035" };
+        const idfmId = idfmMap[code] || info.id;
+        if(idfmId){
+          const fb = await gtfsFallback(idfmId, STOP_IDS.JOINVILLE);
+          extra = gtfsNoteHTML(fb);
+        }
+      }
+      const wrap=document.createElement("div"); wrap.innerHTML=lineBlock(info.meta, info.dirs, extra);
       parent.appendChild(wrap.firstChild);
     }
   }
@@ -438,23 +534,16 @@ async function refreshCourses(){
 // =====================
 // Orchestration
 // =====================
-async function renderLine1And2(){
-  await Promise.all([
-    renderRerA("rerA-body"),
-    renderRerA("rerA-body-dup"),
-    renderHippo77(),
-    renderBreuil(),
-    renderJoinvilleAll()
-  ]);
-}
-
 async function init(){
   tickClock();
   await Promise.all([
     refreshWeather(),
     refreshSaint(),
     refreshBanner(),
-    renderLine1And2(),
+    renderRerA(),
+    renderHippo77(),
+    renderBreuil(),
+    renderJoinvilleAll(),
     refreshVelib(),
     refreshRoad(),
     refreshNews(),
@@ -464,7 +553,10 @@ async function init(){
 
   // Loops
   setInterval(tickClock, 1000);
-  setInterval(async ()=>{ await renderLine1And2(); setLastUpdate(); }, 60*1000);
+  setInterval(async ()=>{
+    await Promise.all([renderRerA(), renderHippo77(), renderBreuil(), renderJoinvilleAll()]);
+    setLastUpdate();
+  }, 60*1000);
   setInterval(refreshBanner, 5*60*1000);
   setInterval(refreshWeather, 10*60*1000);
   setInterval(refreshSaint,   6*60*60*1000);
@@ -472,6 +564,6 @@ async function init(){
   setInterval(refreshRoad,    5*60*1000);
   setInterval(refreshNews,    15*60*1000);
   setInterval(nextNews,       10*1000);
-  setInterval(refreshCourses, 60*1000); // pour mettre à jour le décompte
+  setInterval(refreshCourses, 60*1000); // décompte
 }
 init();
