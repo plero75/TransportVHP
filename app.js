@@ -1,5 +1,5 @@
 // =====================
-// Config / Endpoints
+// CONFIG / ENDPOINTS
 // =====================
 const PROXY = "https://ratp-proxy.hippodrome-proxy42.workers.dev/?url=";
 
@@ -25,9 +25,6 @@ const VELIB = { VINCENNES: "12163", BREUIL: "12128" };
 // PMU (courses)
 const PMU_DAY_URL = (dateStr) => PROXY + encodeURIComponent(`https://offline.turfinfo.api.pmu.fr/rest/client/7/programme/${dateStr}`);
 
-// Paris road fallback
-const PARIS_ROAD = PROXY + encodeURIComponent("https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/comptages-routiers-permanents/records?limit=60&order_by=-t_1h");
-
 // Referentiel ODS + PRIM helpers
 const ODS_BY_ID = (id)   => PROXY + encodeURIComponent(`https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/referentiel-des-lignes/records?where=id_line%3D%22${id}%22&limit=1`);
 const ODS_BY_CD = (cd)   => PROXY + encodeURIComponent(`https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/referentiel-des-lignes/records?where=shortname_line%3D%22${encodeURIComponent(cd)}%22&limit=1`);
@@ -37,7 +34,6 @@ const PRIM_GM   = (idLn) => PROXY + encodeURIComponent(`https://prim.iledefrance
 // Navitia (GTFS-like) stop_schedules (fallback horaires théoriques)
 const NAVITIA_LINE = (lineId) => `line:IDFM:${lineId}`;
 const NAVITIA_STOPAREA = (stopId) => {
-  // STOP_IDS: "STIF:StopArea:SP:43135:" -> 43135
   const m = /SP:(\d+):/.exec(stopId);
   const num = m ? m[1] : "";
   return `stop_area:IDFM:${num}`;
@@ -48,7 +44,7 @@ const NAVI_SCHEDULE = (lineId, stopId, ymdhm) =>
   );
 
 // =====================
-// Utils
+// UTILS
 // =====================
 function clean(s=""){return s.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();}
 async function fetchJSON(url, timeout=12000){
@@ -69,10 +65,7 @@ async function fetchText(url, timeout=12000){
 }
 function minutesFromISO(iso){ if(!iso) return null; return Math.max(0, Math.round((new Date(iso)-Date.now())/60000)); }
 function hhmm(iso){ if(!iso) return "—:—"; const d=new Date(iso); return d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); }
-function ymdhm(d){ // 20251008T012000
-  const pad = n=>String(n).padStart(2,"0");
-  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-}
+function ymdhm(d){ const pad = n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`; }
 function startOfDay(d){const x=new Date(d); x.setHours(0,0,0,0); return x;}
 function addDays(d,n){const x=new Date(d); x.setDate(x.getDate()+n); return x;}
 function setLastUpdate(){ const el=document.getElementById("lastUpdate"); if(el) el.textContent=new Date().toLocaleTimeString("fr-FR"); }
@@ -256,7 +249,6 @@ async function renderRerA(){
 
   let extra="";
   if(!vParis.length && !vBoissy.length){
-    // GTFS fallback sur la ligne A (id "C01742")
     const fb = await gtfsFallback("C01742", STOP_IDS.RER_A);
     extra = gtfsNoteHTML(fb);
   }
@@ -323,22 +315,19 @@ async function renderJoinvilleAll(){
   const byCode=new Map();
   for(const g of grouped){ const m=await metaById(g.lineId); byCode.set((m.code||"").toUpperCase(), {meta:m, dirs:g.dirs, id:g.lineId}); }
 
+  const idfmMap={ "77":"C02251","201":"C01219","101":"C01101","106":"C01135","108":"C01137","110":"C01139","112":"C01141","281":"C01429","317":"C01751","393":"C01957","520":"C02873","N33":"C03033","N35":"C03035" };
+
   const half=Math.ceil(JOINVILLE_BUS_CODES.length/2);
   const leftList=JOINVILLE_BUS_CODES.slice(0,half);
   const rightList=JOINVILLE_BUS_CODES.slice(half);
 
   async function renderList(list,parent){
     for(const code of list){
-      const info = byCode.get(code) || { meta: await metaByCode(code), dirs: [], id: null };
+      const info = byCode.get(code) || { meta: await metaByCode(code), dirs: [], id: idfmMap[code] || null };
       let extra="";
-      if(info.dirs.every(d=>!d.list.length)){
-        // map code -> idfm id (connus)
-        const idfmMap={ "77":"C02251","201":"C01219","101":"C01101","106":"C01135","108":"C01137","110":"C01139","112":"C01141","281":"C01429","317":"C01751","393":"C01957","520":"C02873","N33":"C03033","N35":"C03035" };
-        const idfmId = idfmMap[code] || info.id;
-        if(idfmId){
-          const fb = await gtfsFallback(idfmId, STOP_IDS.JOINVILLE);
-          extra = gtfsNoteHTML(fb);
-        }
+      if(info.dirs.every(d=>!d.list.length) && info.id){
+        const fb = await gtfsFallback(info.id, STOP_IDS.JOINVILLE);
+        extra = gtfsNoteHTML(fb);
       }
       const wrap=document.createElement("div"); wrap.innerHTML=lineBlock(info.meta, info.dirs, extra);
       parent.appendChild(wrap.firstChild);
@@ -397,49 +386,6 @@ async function refreshVelib(){
 }
 
 // =====================
-// Trafic routier (fallback Paris opendata)
-// =====================
-function distanceKm(lat1,lon1,lat2,lon2){
-  const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180;
-  const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(a));
-}
-async function refreshRoad(){
-  const cont=document.getElementById("road-list"); if(!cont) return;
-  cont.textContent="Chargement…";
-  try{
-    const data=await fetchJSON(PARIS_ROAD, 12000);
-    const results=data?.results||[];
-    const center={lat:48.825, lon:2.45};
-    const KEY=["Périph","A4","A86","Vincennes","Joinville","Charenton"];
-    const seen=new Set(), rows=[];
-    for(const rec of results){
-      const lib=(rec.libelle||"").replace(/_/g," ").trim();
-      if(!lib || seen.has(lib)) continue;
-      const pt=rec.geo_point_2d;
-      if(pt){
-        const d=distanceKm(center.lat, center.lon, pt.lat, pt.lon);
-        if(d>6) continue;
-      }
-      if(!KEY.some(k=>new RegExp(k,"i").test(lib))) continue;
-      seen.add(lib);
-      rows.push({ lib, status:rec.etat_trafic||"—" });
-      if(rows.length>=6) break;
-    }
-    cont.innerHTML="";
-    if(!rows.length){ cont.innerHTML='<div class="road"><span class="badge-road">OK</span> Circulation fluide autour de Vincennes</div>'; return; }
-    rows.forEach(r=>{
-      const sev=/ralenti|dense|satur|bouch/i.test(r.status) ? "warn" : "";
-      const div=document.createElement("div"); div.className="road";
-      div.innerHTML=`<span class="badge-road ${sev}">${sev? "Alerte":"OK"}</span> ${r.lib} — ${r.status}`;
-      cont.appendChild(div);
-    });
-  }catch(e){
-    cont.innerHTML='<div class="road"><span class="badge-road warn">Alerte</span> Données routières indisponibles</div>';
-  }
-}
-
-// =====================
 // News France Info (15 min, rotation 10 s)
 // =====================
 let news=[], newsIdx=0;
@@ -481,11 +427,13 @@ function todayPmuStr(){
   const d=new Date();
   return `${String(d.getDate()).padStart(2,"0")}${String(d.getMonth()+1).padStart(2,"0")}${d.getFullYear()}`;
 }
+const PMU_URL = (day) => PMU_DAY_URL(day);
+
 async function fetchCoursesOncePerDay(){
   const day=todayPmuStr();
   if(coursesCache.dayStr===day) return coursesCache;
 
-  const data=await fetchJSON(PMU_DAY_URL(day),15000);
+  const data=await fetchJSON(PMU_URL(day),15000);
   const vin=[], eng=[];
   if(data?.programme?.reunions){
     data.programme.reunions.forEach(r=>{
@@ -532,6 +480,14 @@ async function refreshCourses(){
 }
 
 // =====================
+// Sytadin (image auto-rafraîchie)
+// =====================
+function refreshSytadin(){
+  const img=document.getElementById("sytadin-map");
+  if(img) img.src="https://www.sytadin.fr/sys/barometre_courant_carte_centre.gif?"+Date.now();
+}
+
+// =====================
 // Orchestration
 // =====================
 async function init(){
@@ -545,10 +501,10 @@ async function init(){
     renderBreuil(),
     renderJoinvilleAll(),
     refreshVelib(),
-    refreshRoad(),
     refreshNews(),
     refreshCourses()
   ]);
+  refreshSytadin();
   setLastUpdate();
 
   // Loops
@@ -561,9 +517,9 @@ async function init(){
   setInterval(refreshWeather, 10*60*1000);
   setInterval(refreshSaint,   6*60*60*1000);
   setInterval(refreshVelib,   30*1000);
-  setInterval(refreshRoad,    5*60*1000);
+  setInterval(refreshSytadin, 5*60*1000);
   setInterval(refreshNews,    15*60*1000);
   setInterval(nextNews,       10*1000);
-  setInterval(refreshCourses, 60*1000); // décompte
+  setInterval(refreshCourses, 60*1000); // décompte live
 }
 init();
