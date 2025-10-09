@@ -1,66 +1,80 @@
-/* ===== Charte IDFM ===== */
-html,body{margin:0;padding:0;height:100%;background:#f5f6f8;color:#001858;font-family:Segoe UI,Arial,Helvetica,sans-serif;overflow:hidden}
-#fit{width:1920px;height:1080px;transform-origin:top left}
-.mono{font-variant-numeric:tabular-nums}
-.topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#001858;color:#fff}
-.topbar .title{font-weight:800}
-.topbar .subtitle{opacity:.85;font-size:.9rem}
-.header-right{display:flex;gap:14px;align-items:center}
-#weatherIcon{width:24px;height:24px;display:inline-block;border-radius:50%}
-#weatherIcon.sunny{background: radial-gradient(circle at 50% 50%, #ffd44d 0 60%, transparent 61%)}
-#weatherIcon.cloudy{background: conic-gradient(from 180deg at 50% 70%, #c7d2fe, #e5e7eb)}
-#weatherIcon.rainy{background: linear-gradient(#9ca3af 60%, transparent 0), repeating-linear-gradient(135deg, #60a5fa 0 4px, transparent 4px 8px)}
-#weatherIcon.windy{background: linear-gradient(90deg, #93c5fd 0 40%, transparent 40% 100%)}
-.saint{opacity:.9;font-style:italic}
-.ico{opacity:.7;margin-right:4px}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard IDFM – Vincennes / Joinville (v3.2)</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="fit">
+  <header class="topbar">
+    <div class="brand">
+      <div class="title">Dashboard IDFM – Vincennes / Joinville</div>
+      <div class="subtitle">Hippodrome de Paris-Vincennes — Données temps réel Île-de-France Mobilités</div>
+    </div>
+    <div class="header-right">
+      <div id="date"></div>
+      <div id="time" class="mono"></div>
+      <div class="weather" id="weather" title="">
+        <span id="weatherIcon" aria-hidden="true"></span>
+        <strong id="weatherTemp">--°C</strong>
+      </div>
+      <div id="saint" class="saint"></div>
+    </div>
+  </header>
 
-/* ===== Grid ===== */
-main{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(6,1fr);gap:10px;padding:10px;box-sizing:border-box;height:calc(100% - 88px)}
-.panel{background:#ffffff;border:1px solid #dbe2f3;border-radius:12px;padding:10px;display:flex;flex-direction:column;box-shadow:0 2px 4px rgba(0,0,0,.05)}
-.panel h2{margin:0 0 8px;font-size:1.05rem;color:#001858}
-.board{flex:1;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+  <main>
+    <!-- Ligne 1 -->
+    <section class="panel"><h2><span class="ico">🚇</span> Joinville — RER A</h2>
+      <div class="board" id="rerA-board"></div>
+      <div class="traffic-msg" id="rerA-traffic"></div>
+    </section>
 
-/* ===== Lines (grouped by direction) ===== */
-.row{display:grid;grid-template-columns: 72px 1fr auto;gap:10px;align-items:center;background:#f7f8fb;border:1px solid #e3e6f2;border-radius:10px;padding:8px 10px;opacity:0;transform:translateX(8px)}
-.row.show{opacity:1;transform:none;transition:opacity .35s ease,transform .35s ease}
-.badge{grid-column:1;justify-self:start;color:#fff;font-weight:900;font-size:1.35rem;min-width:72px;text-align:center;border-radius:10px;padding:10px 0;box-shadow:inset 0 -2px 0 rgba(0,0,0,.15)}
-.dest{grid-column:2;font-weight:800}
-.times{grid-column:3;display:flex;gap:8px;align-items:center}
-.time{background:#000;color:#ffed00;border-radius:6px;padding:4px 10px;font-weight:900;min-width:36px;text-align:center}
-.st{padding:4px 8px;border-radius:6px;color:#fff;font-weight:800}
-.st.imminent{background:#0a7d21}
-.st.delayed{background:#b45309}
-.st.cancelled{background:#b91c1c}
-.st.instation{background:#1d4ed8}
-.ended{background:#9aa1b2;color:#fff}
+    <section class="panel"><h2><span class="ico">🚌</span> Hippodrome — Bus 77</h2>
+      <div class="board" id="bus77-board"></div>
+      <div class="traffic-msg" id="bus77-traffic"></div>
+    </section>
 
-/* Joinville 2-cols compact */
-.joinville-two-cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.joinville-two-cols .row{margin:0}
+    <section class="panel"><h2><span class="ico">🚌</span> École du Breuil — Bus 201</h2>
+      <div class="board" id="bus201-board"></div>
+      <div class="traffic-msg" id="bus201-traffic"></div>
+    </section>
 
-/* Traffic message */
-.traffic-msg{margin-top:6px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:6px 8px;font-weight:700;display:none}
-.traffic-msg.show{display:block;animation:fadeIn .3s ease}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    <!-- Ligne 2 -->
+    <section class="panel" style="grid-column:1 / span 2; grid-row:2;">
+      <h2><span class="ico">🚌</span> Joinville — Tous les bus</h2>
+      <div class="board joinville-two-cols" id="joinville-all"></div>
+    </section>
 
-/* Sytadin */
-.sytadin-panel{display:flex;flex-direction:column}
-.traffic-indicator{margin-bottom:6px;background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;border-radius:8px;padding:6px 8px;font-weight:700}
-.sytadin-frame{flex:1;width:100%;height:100%;border:0;border-radius:8px;background:#e9eef8}
+    <section class="panel sytadin-panel" style="grid-column:3; grid-row:2 / span 2;">
+      <h2><span class="ico">🛣</span> Carte trafic — Sytadin</h2>
+      <div id="sytadin-indicator" class="traffic-indicator">Lecture des conditions…</div>
+      <iframe id="sytadin" class="sytadin-frame" title="Carte Sytadin" src="https://www.sytadin.fr/frame/cartographie.jsp.html?largeur=596" loading="lazy"></iframe>
+    </section>
 
-/* Velib */
-.velib{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-.kpi{display:flex;align-items:center;gap:8px;background:#f7f8fb;border:1px solid #e3e6f2;border-radius:10px;padding:8px 10px}
-.kpi .value{font-size:1.05rem;font-weight:900}
-.kpi .label{font-size:.85rem;color:#334155}
+    <!-- Ligne 3 -->
+    <section class="panel"><h2><span class="ico">🚴</span> Vélib’ — Hippodrome (12163)</h2><div class="board velib" id="velib1"></div></section>
+    <section class="panel"><h2><span class="ico">🚴</span> Vélib’ — École du Breuil (12128)</h2><div class="board velib" id="velib2"></div></section>
 
-/* Tickets */
-.tickets{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.ticket{display:flex;align-items:center;justify-content:space-between;background:#f7f8fb;border:1px solid #e3e6f2;border-radius:10px;padding:8px}
-.badge-blue{background:#001858;color:#fff;border-radius:8px;padding:4px 8px;font-weight:900;min-width:68px;text-align:center}
-.t-info{display:flex;flex-direction:column}
-.t-title{font-weight:800}
-.t-time{font-weight:900}
+    <!-- Ligne 4 -->
+    <section class="panel"><h2><span class="ico">🚗</span> Trafic routier</h2><div class="board" id="road"></div></section>
+    <section class="panel" style="grid-column:2 / span 2;"><h2><span class="ico">🗞</span> Flash News — France Info</h2><div class="board" id="news"></div></section>
 
-/* Footer */
-.footer{height:36px;display:flex;align-items:center;justify-content:center;color:#475569}
+    <!-- Ligne 5-6 -->
+    <section class="panel" style="grid-column:1; grid-row:5 / span 2;"><h2><span class="ico">🐎</span> Courses — Vincennes</h2><div class="board tickets" id="racesVincennes"></div></section>
+    <section class="panel" style="grid-column:2; grid-row:5 / span 2;"><h2><span class="ico">🐎</span> Courses — Enghien</h2><div class="board tickets" id="racesEnghien"></div></section>
+  </main>
+
+  <footer class="footer">
+    <span>© Hippodrome de Paris-Vincennes • Build v3.2</span>
+  </footer>
+</div>
+
+<script src="app.js"></script>
+<script>
+function fit(){const r=document.getElementById('fit');const W=r.offsetWidth,H=r.offsetHeight;const w=window.innerWidth,h=window.innerHeight;const s=Math.min(w/W,h/H);r.style.transform=`scale(${s})`}
+window.addEventListener('resize',fit);fit();
+</script>
+</body>
+</html>
