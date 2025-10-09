@@ -1,184 +1,231 @@
-// -----------------------------------------------------------------------------
-// Dashboard Transports – Hippodrome Paris-Vincennes
-// -----------------------------------------------------------------------------
-// ✅ Version finale : vraies directions, temps fusionné, statut coloré,
-// suppression du "prévu", cadres auto-ajustés, groupement par direction
-// -----------------------------------------------------------------------------
-
-// === Constantes principales ===
+// ===== Config & endpoints =====
 const PROXY = "https://ratp-proxy.hippodrome-proxy42.workers.dev/?url=";
 const API_BASE = "https://prim.iledefrance-mobilites.fr/marketplace";
+const SMARTIDF_LINES = "https://data.smartidf.services/api/explore/v2.1/catalog/datasets/referentiel-des-lignes0/records?limit=5000";
+const WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=48.835&longitude=2.45&current_weather=true";
+const RSS_URL = "https://www.francetvinfo.fr/titres.rss";
+const NOMINIS_URL = "https://nominis.cef.fr/json/nominis.php";
+const SYTADIN_INDICATOR_SRC = "https://www.sytadin.fr/sys/barometre_courant_cens.xml";
 
-// === Identifiants d’arrêts ===
+// ===== Live colors (SmartIDF) =====
+let LINE_COLORS = {}; // id -> {color,name,operator}
+async function loadLineColors(){
+  const cache = sessionStorage.getItem("IDFM_LINE_COLORS_V1");
+  if(cache){ try{ LINE_COLORS = JSON.parse(cache); return; }catch{} }
+  try{
+    const url = PROXY + encodeURIComponent(SMARTIDF_LINES);
+    const res = await fetch(url);
+    const j = await res.json();
+    const rows = j.results || j.records || [];
+    const map = {};
+    rows.forEach(rec => {
+      const f = rec.fields || rec;
+      const id = f.id || f.idligne || f.id_line || f.line_id || f.internalid || f["id_line:"] || null;
+      let color = f.color || f.couleur || f.colorweb || f.color_hex || f.hexcolor || null;
+      const name = f.shortname || f.name || f.linename || f.label || f.publicname || null;
+      const operator = f.operatorname || f.operator || f.networkname || null;
+      if(id && color){
+        if(/^[0-9A-Fa-f]{6}$/.test(color)) color = "#" + color;
+        if(/^#[0-9A-Fa-f]{6}$/.test(color)) map[id] = {color, name, operator};
+      }
+    });
+    if(Object.keys(map).length){
+      LINE_COLORS = map;
+      sessionStorage.setItem("IDFM_LINE_COLORS_V1", JSON.stringify(map));
+    }
+  }catch(e){ console.warn("SmartIDF color fetch failed", e); }
+}
+
+// ===== Fallback (pour nos lignes si SmartIDF indispo) =====
+const FALLBACK = {
+  "STIF:Line::C01742:": "#e6003d", // RER A
+  "STIF:Line::C02251:": "#0072bc", // 77
+  "STIF:Line::C02252:": "#836d46", // 201
+  "STIF:Line::C00229:": "#f28e00", // 101
+  "STIF:Line::C00175:": "#e3001b", // 106
+  "STIF:Line::C00177:": "#732982", // 108
+  "STIF:Line::C00179:": "#5c2d91", // 110
+  "STIF:Line::C00181:": "#b97a57", // 112
+  "STIF:Line::C00659:": "#878500", // 281
+  "STIF:Line::C00702:": "#001858", // N33
+};
+
+// ===== Vélib
+const VELIB_INFO_URL   = "https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_information.json";
+const VELIB_STATUS_URL = "https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json";
+const VELIB_STATIONS   = [
+  { code: "12163", elId: "velib1", label: "Vincennes" },
+  { code: "12128", elId: "velib2", label: "École du Breuil" }
+];
+
+// ===== Stops & Lines (IDs fixes)
 const STOP_IDS = {
   RER_A: "STIF:StopArea:SP:43135:",
   JOINVILLE: "STIF:StopArea:SP:70640:",
   HIPPODROME: "STIF:StopArea:SP:463641:",
   BREUIL: "STIF:StopArea:SP:463644:"
 };
-
-// === Lignes à afficher ===
 const LINES = {
-  RER_A: { id: "STIF:Line::C01742:", label: "RER A" },
-  BUS_77: { id: "STIF:Line::C02251:", label: "BUS 77" },
-  BUS_201: { id: "STIF:Line::C02252:", label: "BUS 201" }
+  RER_A:  { id: "STIF:Line::C01742:", code: "A",   color:"#e6003d" },
+  BUS_77: { id: "STIF:Line::C02251:", code: "77",  color:"#0072bc" },
+  BUS_201:{ id: "STIF:Line::C02252:", code: "201", color:"#836d46" }
 };
 
-// === Fonction principale ===
-async function fetchDepartures(stopId, lineId) {
-  const url = `${PROXY}${API_BASE}/stop-monitoring?MonitoringRef=${encodeURIComponent(
-    stopId
-  )}&LineRef=${encodeURIComponent(lineId)}`;
+// Helpers live color
+function colorFor(id){ return (LINE_COLORS[id]?.color) || FALLBACK[id] || "#001858"; }
+function applyLiveColor(meta){ return {...meta, color: colorFor(meta.id)}; }
 
-  try {
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    const data = await res.json();
-    return (
-      data?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]
-        ?.MonitoredStopVisit || []
-    );
-  } catch (err) {
-    console.error("Erreur fetch:", err);
-    return [];
+// ===== Utils
+const pad2 = n => String(n).padStart(2,"0");
+const nowFR = () => new Date().toLocaleString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+const dateFR = () => { const d=new Date(); return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`; };
+const minutesUntil = iso => Math.floor((new Date(iso) - new Date())/60000);
+function setWeatherIcon(code){
+  const ic = document.getElementById("weatherIcon"); ic.className="";
+  if([0].includes(code)) ic.classList.add("sunny");
+  else if([1,2,3,45,48].includes(code)) ic.classList.add("cloudy");
+  else if([51,53,55,61,63,65,80,81,82].includes(code)) ic.classList.add("rainy");
+  else ic.classList.add("windy");
+}
+
+// ===== PRIM fetchers
+async function fetchStopMonitoring(stopId, lineId){
+  const url = `${PROXY}${API_BASE}/stop-monitoring?MonitoringRef=${encodeURIComponent(stopId)}&LineRef=${encodeURIComponent(lineId)}`;
+  const res = await fetch(url, {headers:{Accept:"application/json"}});
+  const j = await res.json();
+  return j?.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit ?? [];
+}
+async function fetchGeneralMessage(lineId){
+  const url = `${PROXY}${API_BASE}/general-message?LineRef=${encodeURIComponent(lineId)}`;
+  try{
+    const res = await fetch(url, {headers:{Accept:"application/json"}});
+    const j = await res.json();
+    const msgs = j?.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage ?? [];
+    return msgs.map(m => m?.Content?.Message?.[0]?.MessageText?.[0]?.value).filter(Boolean);
+  }catch{ return []; }
+}
+
+// ===== Grouping & rendering
+function groupByDirection(visits){
+  const map = new Map();
+  for(const v of visits){
+    const mvj = v.MonitoredVehicleJourney;
+    const dir = mvj?.DestinationName?.[0]?.value || mvj?.DirectionName?.[0]?.value || "Direction inconnue";
+    if(!map.has(dir)) map.set(dir, []);
+    map.get(dir).push(v);
   }
+  return map;
 }
-
-// === Helpers ===
-function minutesUntil(timeStr) {
-  const diff = new Date(timeStr) - new Date();
-  return Math.floor(diff / 60000);
+function statusFrom(call, mvj){
+  const exp = call.ExpectedArrivalTime || call.ExpectedDepartureTime;
+  const aim = call.AimedArrivalTime || call.AimedDepartureTime;
+  const s = (call.ArrivalStatus || mvj.ProgressStatus || "").toLowerCase();
+  const mins = exp ? Math.max(0, Math.floor((new Date(exp)-new Date())/60000)) : null;
+  if(s.includes("cancelled")) return {cls:"cancelled", text:"Supprimé"};
+  if(mins!==null && mins<=1) return {cls:"imminent", text:"Imminent"};
+  if(s.includes("inprogress")) return {cls:"instation", text:"En station"};
+  if(exp && aim && exp!==aim){ const delay = Math.floor((new Date(exp)-new Date(aim))/60000); if(delay>0) return {cls:"delayed", text:`Retard +${delay}’`}; }
+  return null;
 }
-function formatTime(timeStr) {
-  const d = new Date(timeStr);
-  return d.toLocaleTimeString("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+function buildDirectionRow({lineCode, lineColor, direction, times, statuses, operator}){
+  const row = document.createElement("div"); row.className="row";
+  const badge = document.createElement("div"); badge.className="badge"; badge.style.background=lineColor; badge.textContent=lineCode;
+  if(operator) badge.title = operator;
+  const dest = document.createElement("div"); dest.className="dest"; dest.textContent=direction;
+  const right = document.createElement("div"); right.className="times";
+  times.forEach(t=>{ const el=document.createElement("div"); el.className="time"; el.textContent=t; right.appendChild(el); });
+  statuses.forEach(s=>{ if(!s) return; const st=document.createElement("div"); st.className="st "+s.cls; st.textContent=s.text; right.appendChild(st); });
+  row.appendChild(badge); row.appendChild(dest); row.appendChild(right);
+  requestAnimationFrame(()=>row.classList.add("show")); return row;
 }
-
-// === Rendu principal avec regroupement par direction ===
-async function renderDepartures(stopId, lineKey, containerId) {
-  const line = LINES[lineKey];
-  const visits = await fetchDepartures(stopId, line.id);
-  const container = document.getElementById(containerId);
-  container.innerHTML = "";
-
-  if (!visits.length) {
-    container.innerHTML = `<div class="no-service">🚫 Service terminé</div>`;
-    return;
+function renderPanel(boardEl, visits, lineMeta){
+  boardEl.innerHTML = "";
+  const meta = applyLiveColor(lineMeta);
+  const liveOp = (LINE_COLORS[meta.id]?.operator) || null;
+  const groups = groupByDirection(visits);
+  if(!visits.length || !groups.size){
+    const row = document.createElement("div"); row.className="row show";
+    row.innerHTML = `<div class="badge ended">—</div><div class="dest">Service terminé</div><div class="times"></div>`;
+    boardEl.appendChild(row); return;
   }
-
-  // --- Grouper par direction ---
-  const grouped = {};
-  visits.forEach((v) => {
-    const dir =
-      v.MonitoredVehicleJourney?.DestinationName?.[0]?.value ||
-      v.MonitoredVehicleJourney?.DirectionName?.[0]?.value ||
-      "Direction inconnue";
-    if (!grouped[dir]) grouped[dir] = [];
-    grouped[dir].push(v);
-  });
-
-  // --- Parcourir chaque direction ---
-  Object.entries(grouped).forEach(([direction, group]) => {
-    const directionDiv = document.createElement("div");
-    directionDiv.className = "direction-block";
-    directionDiv.innerHTML = `<div class="direction-title">👉 ${direction}</div>`;
-
-    group.slice(0, 4).forEach((item) => {
-      const mvj = item.MonitoredVehicleJourney;
-      const call = mvj.MonitoredCall;
-      const aimed = call.AimedArrivalTime || call.AimedDepartureTime;
-      const expected = call.ExpectedArrivalTime || call.ExpectedDepartureTime;
-      const minutes = minutesUntil(expected);
-      const displayTime = `${formatTime(expected)} (${minutes} min)`;
-
-      // === Statut ===
-      const status = call.ArrivalStatus || mvj.ProgressStatus || "";
-      let stateClass = "";
-      let statusLabel = "";
-      if (status.includes("cancelled")) {
-        stateClass = "cancelled";
-        statusLabel = "❌ Supprimé";
-      } else if (minutes <= 1) {
-        stateClass = "imminent";
-        statusLabel = "🟢 Imminent";
-      } else if (status.includes("inProgress")) {
-        stateClass = "in-station";
-        statusLabel = "🚉 En station";
-      } else if (expected && aimed && expected !== aimed) {
-        stateClass = "delayed";
-        const delay = minutesUntil(expected) - minutesUntil(aimed);
-        statusLabel = `⚠️ Retard +${delay} min`;
-      }
-
-      const itemDiv = document.createElement("div");
-      itemDiv.className = `departure ${stateClass}`;
-      itemDiv.innerHTML = `
-        <div class="time">${displayTime}</div>
-        <div class="status">${statusLabel || ""}</div>
-      `;
-      directionDiv.appendChild(itemDiv);
+  for(const [direction, list] of groups){
+    const times=[], statuses=[];
+    list.slice(0,3).forEach(v=>{ const mvj=v.MonitoredVehicleJourney; const call=mvj.MonitoredCall;
+      const exp=call.ExpectedArrivalTime||call.ExpectedDepartureTime;
+      const mins=exp?Math.max(0, Math.floor((new Date(exp)-new Date())/60000)):null;
+      if(mins!==null) times.push(String(mins));
+      statuses.push(statusFrom(call,mvj));
     });
-
-    container.appendChild(directionDiv);
-  });
+    boardEl.appendChild(buildDirectionRow({ lineCode:meta.code, lineColor:meta.color, direction, times, statuses, operator: liveOp }));
+  }
 }
 
-// === Initialisation ===
-async function initDashboard() {
-  await renderDepartures(STOP_IDS.RER_A, "RER_A", "rerA");
-  await renderDepartures(STOP_IDS.JOINVILLE, "BUS_77", "bus77");
-  await renderDepartures(STOP_IDS.HIPPODROME, "BUS_201", "bus201");
-}
-initDashboard();
+// ===== Renderers
+async function renderRER(){ const v=await fetchStopMonitoring(STOP_IDS.RER_A, LINES.RER_A.id); renderPanel(document.getElementById("rerA-board"), v, LINES.RER_A); const m=await fetchGeneralMessage(LINES.RER_A.id); const t=document.getElementById("rerA-traffic"); t.classList.toggle("show", m.length>0); t.textContent = m[0] ? `⚠️ ${m[0]}` : ""; }
+async function renderBus77(){ const v=await fetchStopMonitoring(STOP_IDS.HIPPODROME, LINES.BUS_77.id); renderPanel(document.getElementById("bus77-board"), v, LINES.BUS_77); const m=await fetchGeneralMessage(LINES.BUS_77.id); const t=document.getElementById("bus77-traffic"); t.classList.toggle("show", m.length>0); t.textContent = m[0] ? `⚠️ ${m[0]}` : ""; }
+async function renderBus201(){ const [v1,v2]=await Promise.all([ fetchStopMonitoring(STOP_IDS.HIPPODROME, LINES.BUS_201.id), fetchStopMonitoring(STOP_IDS.BREUIL, LINES.BUS_201.id) ]); renderPanel(document.getElementById("bus201-board"), [...v1,...v2], LINES.BUS_201); const m=await fetchGeneralMessage(LINES.BUS_201.id); const t=document.getElementById("bus201-traffic"); t.classList.toggle("show", m.length>0); t.textContent = m[0] ? `⚠️ ${m[0]}` : ""; }
 
-// === Styles dynamiques injectés ===
-const style = document.createElement("style");
-style.innerHTML = `
-body {
-  font-family: "Arial", sans-serif;
-  color: #fff;
-  background: #0b0b0b;
+// Tous bus
+const JOINVILLE_LINES = [
+  { id:"STIF:Line::C02251:", code:"77"  },
+  { id:"STIF:Line::C02252:", code:"201" },
+  { id:"STIF:Line::C00229:", code:"101" },
+  { id:"STIF:Line::C00175:", code:"106" },
+  { id:"STIF:Line::C00177:", code:"108" },
+  { id:"STIF:Line::C00179:", code:"110" },
+  { id:"STIF:Line::C00181:", code:"112" },
+  { id:"STIF:Line::C00659:", code:"281" },
+  { id:"STIF:Line::C00702:", code:"N33" },
+];
+async function renderJoinvilleAll(){
+  const board=document.getElementById("joinville-all"); board.innerHTML="";
+  for(const meta0 of JOINVILLE_LINES){
+    const meta = {...meta0, color: colorFor(meta0.id)};
+    const visits = await fetchStopMonitoring(STOP_IDS.JOINVILLE, meta.id);
+    const groups = groupByDirection(visits);
+    if(!visits.length || !groups.size){
+      const row = buildDirectionRow({lineCode:meta.code,lineColor:meta.color,direction:"Service terminé",times:[],statuses:[{cls:"ended",text:""}],operator: LINE_COLORS[meta.id]?.operator });
+      board.appendChild(row); continue;
+    }
+    const entries = Array.from(groups.entries()).slice(0,2);
+    for(const [direction, list] of entries){
+      const times=[], statuses=[];
+      list.slice(0,3).forEach(v=>{ const mvj=v.MonitoredVehicleJourney; const call=mvj.MonitoredCall;
+        const exp=call.ExpectedArrivalTime||call.ExpectedDepartureTime;
+        const mins=exp?Math.max(0, Math.floor((new Date(exp)-new Date())/60000)):null;
+        if(mins!==null) times.push(String(mins));
+        statuses.push(statusFrom(call,mvj));
+      });
+      board.appendChild(buildDirectionRow({lineCode:meta.code,lineColor:meta.color,direction,times,statuses,operator: LINE_COLORS[meta.id]?.operator }));
+    }
+  }
 }
-.direction-block {
-  background: rgba(255,255,255,0.05);
-  margin-bottom: 10px;
-  padding: 10px;
-  border-radius: 12px;
+
+// Weather + saint + news + velib + sytadin
+async function renderWeather(){ try{ const r=await fetch(WEATHER_URL); const j=await r.json(); const w=j?.current_weather; if(w){ document.getElementById("weatherTemp").textContent = `${Math.round(w.temperature)}°C`; document.getElementById("weather").title = `${Math.round(w.temperature)}°C, vent ${Math.round(w.windspeed)} km/h`; setWeatherIcon(Number(w.weathercode)); } }catch{} }
+async function renderSaint(){ const d=new Date(); const url=`${PROXY}${NOMINIS_URL}?jour=${d.getDate()}&mois=${d.getMonth()+1}`; try{ const r=await fetch(url,{headers:{Accept:"application/json"}}); const j=await r.json(); const s=j?.response?.nominis?.jour?.fete || j?.response?.fete || ""; document.getElementById("saint").textContent = s || ""; }catch{ document.getElementById("saint").textContent=""; } }
+async function renderNews(){ const el=document.getElementById("news"); el.innerHTML=""; const url=`${PROXY}${RSS_URL}`; try{ const r=await fetch(url); const xml=await r.text(); const doc=new DOMParser().parseFromString(xml,"application/xml"); const items=Array.from(doc.querySelectorAll("item")).slice(0,8); if(!items.length){ const row=document.createElement("div"); row.className="row show"; row.innerHTML=`<div class="badge" style="background:#001858">•</div><div class="dest">Aucune actu pour le moment</div><div class="times"></div>`; el.appendChild(row); return; } items.forEach(it=>{ const title=it.querySelector("title")?.textContent?.trim()||""; if(!title) return; const row=document.createElement("div"); row.className="row"; row.innerHTML=`<div class="badge" style="background:#001858">•</div><div class="dest">${title}</div><div class="times"></div>`; requestAnimationFrame(()=>row.classList.add("show")); el.appendChild(row); }); }catch{ const row=document.createElement("div"); row.className="row show"; row.innerHTML=`<div class="badge" style="background:#001858">•</div><div class="dest">Flux France Info indisponible</div><div class="times"></div>`; el.appendChild(row);} }
+async function renderVelib(){ const [infoRes,statusRes]=await Promise.all([ fetch(VELIB_INFO_URL).then(r=>r.json()).catch(()=>null), fetch(VELIB_STATUS_URL).then(r=>r.json()).catch(()=>null) ]); const info=infoRes?.data?.stations||[]; const status=statusRes?.data?.stations||[]; const byInfo=new Map(info.map(s=>[String(s.stationCode),s])); const byStat=new Map(status.map(s=>[String(s.stationCode),s])); for(const st of VELIB_STATIONS){ const el=document.getElementById(st.elId); el.innerHTML=""; const i=byInfo.get(st.code); const s=byStat.get(st.code); if(!i||!s){ el.innerHTML = `<div class="row show"><div class="badge" style="background:#4b5563">V</div><div class="dest">Données Vélib’ indisponibles (${st.label})</div><div class="times"></div></div>`; continue; } let mech=0,eBike=0; const types=s.num_bikes_available_types; if(Array.isArray(types)){ types.forEach(t=>{ if(t?.ebike) eBike+=+t.ebike||0; if(t?.mechanical) mech+=+t.mechanical||0; }); } else if(types&&typeof types==="object"){ eBike=+types.ebike||0; mech=+types.mechanical||0; } const places=+s.num_docks_available||0; el.appendChild(makeKPI("🚲",String(mech),"mécaniques")); el.appendChild(makeKPI("⚡",String(eBike),"électriques")); el.appendChild(makeKPI("🅿️",String(places),"places")); } function makeKPI(icon,val,label){ const box=document.createElement("div"); box.className="kpi"; box.innerHTML=`<div class="value">${val}</div><div class="label">${label}</div>`; const ico=document.createElement("div"); ico.textContent=icon; ico.style.fontSize="1.2rem"; box.prepend(ico); return box; } }
+async function renderSytadinIndicator(){ const el=document.getElementById("sytadin-indicator"); try{ const r=await fetch(`${PROXY}${SYTADIN_INDICATOR_SRC}`); const txt=await r.text(); const a4=/A4/i.test(txt)?"A4: ok":"A4: n/d"; const a86=/A86/i.test(txt)?"A86: ok":"A86: n/d"; el.textContent=`${a4} • ${a86}`; }catch{ el.textContent="A4 / A86 : données indisponibles"; } }
+
+// ===== Road & Races placeholders =====
+function renderRoad(){ const el=document.getElementById("road"); el.innerHTML=""; ["A86 • Fluide","A4 • Chargé sens Paris"].forEach(t=>{ const d=document.createElement("div"); d.className="row"; d.innerHTML=`<div class='badge' style='background:#001858'>•</div><div class='dest'>${t}</div><div class='times'></div>`; requestAnimationFrame(()=>d.classList.add("show")); el.appendChild(d); }); }
+function renderRaces(){ const v=document.getElementById("racesVincennes"); const e=document.getElementById("racesEnghien"); const make=(badge,title,time)=>{ const t=document.createElement("div"); t.className="ticket"; t.innerHTML=`<span class="badge-blue">${badge}</span><div class="t-info"><span class="t-title">${title}</span><span class="t-time mono">${time}</span></div>`; return t; }; v.innerHTML=""; e.innerHTML=""; [ ["R1C1","Prix de l'Étrier","13:50"], ["R1C2","Prix de Paris","14:25"], ["R1C3","Prix Masséna","15:05"], ["R1C4","Prix de Vincennes","15:45"] ].forEach(x=>v.appendChild(make(...x))); [ ["R2C1","Prix d'Enghien","13:45"], ["R2C2","Prix Soisy","14:20"], ["R2C3","Prix du Val-d'Oise","15:00"] ].forEach(x=>e.appendChild(make(...x))); }
+
+// ===== Clock =====
+function tick(){ document.getElementById("date").textContent = dateFR(); document.getElementById("time").textContent = nowFR(); }
+
+// ===== Init =====
+async function init(){
+  tick(); setInterval(tick, 15000);
+  await loadLineColors();
+  await Promise.all([ renderRER(), renderBus77(), renderBus201(), renderJoinvilleAll(), renderWeather(), renderNews(), renderVelib(), renderSaint(), renderSytadinIndicator() ]);
+  renderRoad(); renderRaces();
+  setInterval(()=>{ renderRER(); renderBus77(); renderBus201(); renderJoinvilleAll(); }, 30000);
+  setInterval(()=>{ renderWeather(); }, 600000);
+  setInterval(()=>{ renderNews(); }, 120000);
+  setInterval(()=>{ renderVelib(); }, 60000);
+  setInterval(()=>{ renderSaint(); }, 3600000);
+  setInterval(()=>{ renderSytadinIndicator(); }, 300000);
 }
-.direction-title {
-  font-size: 1.2em;
-  font-weight: bold;
-  margin-bottom: 6px;
-  color: #00b4d8;
-  border-bottom: 1px solid rgba(255,255,255,0.15);
-  padding-bottom: 4px;
-}
-.departure {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 10px;
-  margin: 3px 0;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.1);
-  transition: background 0.3s;
-}
-.departure .time {
-  font-weight: 600;
-  font-size: 1em;
-}
-.departure .status {
-  font-size: 0.9em;
-  opacity: 0.9;
-  text-align: right;
-}
-.cancelled { background: rgba(255,0,0,0.15); color: #ff6b6b; }
-.delayed { background: rgba(255,165,0,0.15); color: #ffa500; }
-.imminent { background: rgba(0,255,0,0.2); color: #00ff7f; animation: blink 1s infinite; }
-.in-station { background: rgba(0,153,255,0.15); color: #00aaff; }
-.no-service { text-align:center; padding:10px; color:#bbb; }
-@keyframes blink { 50% { opacity: 0.4; } }
-`;
-document.head.appendChild(style);
+document.addEventListener("DOMContentLoaded", init);
