@@ -212,10 +212,14 @@ async function renderSytadinIndicator(){ const el=document.getElementById("sytad
 function renderRoad(){ const el=document.getElementById("road"); el.innerHTML=""; ["A86 • Fluide","A4 • Chargé sens Paris"].forEach(t=>{ const d=document.createElement("div"); d.className="row"; d.innerHTML=`<div class='badge' style='background:#001858'>•</div><div class='dest'>${t}</div><div class='times'></div>`; requestAnimationFrame(()=>d.classList.add("show")); el.appendChild(d); }); }
 function renderRaces(){ const v=document.getElementById("racesVincennes"); const e=document.getElementById("racesEnghien"); const make=(badge,title,time)=>{ const t=document.createElement("div"); t.className="ticket"; t.innerHTML=`<span class="badge-blue">${badge}</span><div class="t-info"><span class="t-title">${title}</span><span class="t-time mono">${time}</span></div>`; return t; }; v.innerHTML=""; e.innerHTML=""; [ ["R1C1","Prix de l'Étrier","13:50"], ["R1C2","Prix de Paris","14:25"], ["R1C3","Prix Masséna","15:05"], ["R1C4","Prix de Vincennes","15:45"] ].forEach(x=>v.appendChild(make(...x))); [ ["R2C1","Prix d'Enghien","13:45"], ["R2C2","Prix Soisy","14:20"], ["R2C3","Prix du Val-d'Oise","15:00"] ].forEach(x=>e.appendChild(make(...x))); }
 
-// ===== Clock =====
-function tick(){ document.getElementById("date").textContent = dateFR(); document.getElementById("time").textContent = nowFR(); }
-
-// ===== Init =====
+function tick(){
+  const d = document.getElementById("date");
+  const t = document.getElementById("time");
+  if(!d || !t) return; // évite l’erreur
+  d.textContent = dateFR();
+  t.textContent = nowFR();
+}
+/ ===== Init =====
 async function init(){
   tick(); setInterval(tick, 15000);
   await loadLineColors();
