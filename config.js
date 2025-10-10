@@ -3,7 +3,7 @@ export const CONFIG = {
     
     stops: {
         rer: "STIF:StopArea:SP:43135:",
-        bus77: "STIF:StopArea:SP:463641:",
+        bus77: "STIF:StopArea:SP:463641:",  
         bus201: "STIF:StopArea:SP:463644:"
     },
     
@@ -15,7 +15,8 @@ export const CONFIG = {
     
     endpoints: {
         stopMonitoring: "https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring",
-        generalMessage: "https://prim.iledefrance-mobilites.fr/marketplace/general-message",
+        generalMessage: "https://prim.iledefrance-mobilites.fr/marketplace/general-message", 
         situationExchange: "https://prim.iledefrance-mobilites.fr/marketplace/situation-exchange"
     }
 };
+
