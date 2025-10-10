@@ -1,80 +1,205 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard IDFM – Vincennes / Joinville (v3.2)</title>
-<link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard IDFM Fullscreen</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div id="fit">
-  <header class="topbar">
-    <div class="brand">
-      <div class="title">Dashboard IDFM – Vincennes / Joinville</div>
-      <div class="subtitle">Hippodrome de Paris-Vincennes — Données temps réel Île-de-France Mobilités</div>
+    <!-- Header avec appbar -->
+    <div class="appbar">
+        <div class="left">
+            <h1>🚊 Dashboard Transports</h1>
+            <div class="brand">IDFM Live</div>
+        </div>
+        <div class="right">
+            <div class="wx" id="wx">🌤️ <span id="weatherTemp">--°C</span></div>
+            <div class="saint" id="saint"></div>
+            <div class="datetime" id="datetime"></div>
+        </div>
     </div>
-    <div class="header-right">
-      <div id="date"></div>
-      <div id="time" class="mono"></div>
-      <div class="weather" id="weather" title="">
-        <span id="weatherIcon" aria-hidden="true"></span>
-        <strong id="weatherTemp">--°C</strong>
-      </div>
-      <div id="saint" class="saint"></div>
+
+    <!-- Banner infos trafic très importantes -->
+    <div id="important-traffic-banner" class="banner alert" style="display:none;"></div>
+
+    <!-- Grid principal - Transports -->
+    <div class="row row-3">
+        <!-- RER A Joinville -->
+        <div class="card">
+            <h2>🚆 Joinville — RER A</h2>
+            <div id="rer-traffic" class="traffic-banner"></div>
+            <div id="rer-alert" class="alert-msg"></div>
+            <div id="rer-firstlast" class="note"></div>
+            <div id="rer-schedules" class="schedules"></div>
+        </div>
+
+        <!-- Bus 77 Hippodrome -->
+        <div class="card">
+            <h2>🚌 Hippodrome — Bus 77</h2>
+            <div id="bus77-traffic" class="traffic-banner"></div>
+            <div id="bus77-alert" class="alert-msg"></div>
+            <div id="bus77-firstlast" class="note"></div>
+            <div id="bus77-schedules" class="schedules"></div>
+        </div>
+
+        <!-- Bus 201 École du Breuil -->
+        <div class="card">
+            <h2>🚌 École du Breuil — Bus 201</h2>
+            <div id="bus201-traffic" class="traffic-banner"></div>
+            <div id="bus201-alert" class="alert-msg"></div>
+            <div id="bus201-firstlast" class="note"></div>
+            <div id="bus201-schedules" class="schedules"></div>
+        </div>
     </div>
-  </header>
 
-  <main>
-    <!-- Ligne 1 -->
-    <section class="panel"><h2><span class="ico">🚇</span> Joinville — RER A</h2>
-      <div class="board" id="rerA-board"></div>
-      <div class="traffic-msg" id="rerA-traffic"></div>
-    </section>
+    <!-- Ligne 2 - Joinville tous bus + Carte trafic -->
+    <div class="row row-2">
+        <!-- Joinville - Tous les bus -->
+        <div class="card">
+            <h2>🚏 Joinville — Tous les bus</h2>
+            <div id="joinville-traffic" class="traffic-banner"></div>
+            <div id="joinville-alert" class="alert-msg"></div>
+            <div id="joinville-firstlast" class="note"></div>
+            <div id="joinville-schedules" class="schedules"></div>
+        </div>
 
-    <section class="panel"><h2><span class="ico">🚌</span> Hippodrome — Bus 77</h2>
-      <div class="board" id="bus77-board"></div>
-      <div class="traffic-msg" id="bus77-traffic"></div>
-    </section>
+        <!-- Carte trafic Sytadin -->
+        <div class="card">
+            <h2>🗺️ Carte trafic — Sytadin</h2>
+            <div id="sytadin-status" class="sytadin-info">Lecture des conditions...</div>
+            <div id="sytadin-map" class="sytadin-embed">
+                <iframe src="https://www.sytadin.fr/sys/barometre_courbe.jsp.htm" 
+                        width="100%" height="200" frameborder="0"></iframe>
+            </div>
+        </div>
+    </div>
 
-    <section class="panel"><h2><span class="ico">🚌</span> École du Breuil — Bus 201</h2>
-      <div class="board" id="bus201-board"></div>
-      <div class="traffic-msg" id="bus201-traffic"></div>
-    </section>
+    <!-- Ligne 3 - Vélib -->
+    <div class="row row-2">
+        <!-- Vélib Hippodrome -->
+        <div class="card">
+            <h2>🚴 Vélib' — Hippodrome (12163)</h2>
+            <div id="velib-hippodrome" class="velib-grid">
+                <div class="velib-stat">
+                    <div class="count" id="velib-hip-meca">--</div>
+                    <div class="label">mécaniques</div>
+                </div>
+                <div class="velib-stat">
+                    <div class="count" id="velib-hip-elec">--</div>
+                    <div class="label">électriques</div>
+                </div>
+                <div class="velib-stat">
+                    <div class="count" id="velib-hip-docks">--</div>
+                    <div class="label">places</div>
+                </div>
+            </div>
+        </div>
 
-    <!-- Ligne 2 -->
-    <section class="panel" style="grid-column:1 / span 2; grid-row:2;">
-      <h2><span class="ico">🚌</span> Joinville — Tous les bus</h2>
-      <div class="board joinville-two-cols" id="joinville-all"></div>
-    </section>
+        <!-- Vélib École du Breuil -->
+        <div class="card">
+            <h2>🚴 Vélib' — École du Breuil (12128)</h2>
+            <div id="velib-breuil" class="velib-grid">
+                <div class="velib-stat">
+                    <div class="count" id="velib-bre-meca">--</div>
+                    <div class="label">mécaniques</div>
+                </div>
+                <div class="velib-stat">
+                    <div class="count" id="velib-bre-elec">--</div>
+                    <div class="label">électrique</div>
+                </div>
+                <div class="velib-stat">
+                    <div class="count" id="velib-bre-docks">--</div>
+                    <div class="label">places</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <section class="panel sytadin-panel" style="grid-column:3; grid-row:2 / span 2;">
-      <h2><span class="ico">🛣</span> Carte trafic — Sytadin</h2>
-      <div id="sytadin-indicator" class="traffic-indicator">Lecture des conditions…</div>
-      <iframe id="sytadin" class="sytadin-frame" title="Carte Sytadin" src="https://www.sytadin.fr/frame/cartographie.jsp.html?largeur=596" loading="lazy"></iframe>
-    </section>
+    <!-- Ligne 4 - Trafic routier + Flash News -->
+    <div class="row row-2">
+        <!-- Trafic routier -->
+        <div class="card">
+            <h2>🚗 Trafic routier</h2>
+            <div id="traffic-roads" class="traffic-roads">
+                <div class="road-status">
+                    <div class="road-name">A86</div>
+                    <div class="road-state" id="a86-status">Chargement...</div>
+                </div>
+                <div class="road-status">
+                    <div class="road-name">A4</div>
+                    <div class="road-state" id="a4-status">Chargement...</div>
+                </div>
+                <div class="road-status">
+                    <div class="road-name">N406</div>
+                    <div class="road-state" id="n406-status">Chargement...</div>
+                </div>
+            </div>
+        </div>
 
-    <!-- Ligne 3 -->
-    <section class="panel"><h2><span class="ico">🚴</span> Vélib’ — Hippodrome (12163)</h2><div class="board velib" id="velib1"></div></section>
-    <section class="panel"><h2><span class="ico">🚴</span> Vélib’ — École du Breuil (12128)</h2><div class="board velib" id="velib2"></div></section>
+        <!-- Flash News France Info -->
+        <div class="card">
+            <h2>📺 Flash News — France Info</h2>
+            <div id="news-container" class="news-feed">
+                <div class="news-loading">Chargement des actualités...</div>
+            </div>
+        </div>
+    </div>
 
-    <!-- Ligne 4 -->
-    <section class="panel"><h2><span class="ico">🚗</span> Trafic routier</h2><div class="board" id="road"></div></section>
-    <section class="panel" style="grid-column:2 / span 2;"><h2><span class="ico">🗞</span> Flash News — France Info</h2><div class="board" id="news"></div></section>
+    <!-- Ligne 5 - Courses hippiques -->
+    <div class="row row-2">
+        <!-- Courses Vincennes -->
+        <div class="card">
+            <h2>🏇 Courses — Vincennes</h2>
+            <div id="races-vincennes" class="races-container">
+                <div class="races-loading">Chargement programme...</div>
+            </div>
+        </div>
 
-    <!-- Ligne 5-6 -->
-    <section class="panel" style="grid-column:1; grid-row:5 / span 2;"><h2><span class="ico">🐎</span> Courses — Vincennes</h2><div class="board tickets" id="racesVincennes"></div></section>
-    <section class="panel" style="grid-column:2; grid-row:5 / span 2;"><h2><span class="ico">🐎</span> Courses — Enghien</h2><div class="board tickets" id="racesEnghien"></div></section>
-  </main>
+        <!-- Courses Enghien -->
+        <div class="card">
+            <h2>🏇 Courses — Enghien</h2>
+            <div id="races-enghien" class="races-container">
+                <div class="races-loading">Chargement programme...</div>
+            </div>
+        </div>
+    </div>
 
-  <footer class="footer">
-    <span>© Hippodrome de Paris-Vincennes • Build v3.2</span>
-  </footer>
-</div>
+    <!-- Ligne 6 - Météo détaillée + Saint du jour -->
+    <div class="row row-2">
+        <!-- Météo complète -->
+        <div class="card">
+            <h2>🌤️ Météo — Vincennes</h2>
+            <div id="weather-details" class="weather-full">
+                <div class="weather-current">
+                    <div class="temp-display" id="weather-temp-big">--°C</div>
+                    <div class="weather-desc" id="weather-description">--</div>
+                    <div class="weather-icon" id="weatherIcon"></div>
+                </div>
+                <div class="weather-extras">
+                    <div class="weather-item">
+                        <span>Vent:</span>
+                        <span id="weather-wind">-- km/h</span>
+                    </div>
+                    <div class="weather-item">
+                        <span>Humidité:</span>
+                        <span id="weather-humidity">--%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<script src="app.js"></script>
-<script>
-function fit(){const r=document.getElementById('fit');const W=r.offsetWidth,H=r.offsetHeight;const w=window.innerWidth,h=window.innerHeight;const s=Math.min(w/W,h/H);r.style.transform=`scale(${s})`}
-window.addEventListener('resize',fit);fit();
-</script>
+        <!-- Saint du jour + date complète -->
+        <div class="card">
+            <h2>📅 Aujourd'hui</h2>
+            <div id="date-info" class="date-details">
+                <div class="full-date" id="date-complete"></div>
+                <div class="saint-info" id="saint-complete"></div>
+                <div class="time-info" id="time-display"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
 </body>
 </html>
