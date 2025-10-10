@@ -254,7 +254,7 @@ d.textContent = dateFR();
 t.textContent = nowFR();
 }
 
-// ===== Init =====
+// ===== Init ======
 async function init(){
 tick(); setInterval(tick, 15000);
 await loadLineColors();
